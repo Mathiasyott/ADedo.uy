@@ -503,6 +503,29 @@ footer {
     </button>
 
     <div class="error-box" id="errorBox"></div>
+
+    <!-- PANEL KEY PROPIA -->
+    <div id="panelKey" style="display:none;margin-top:1rem">
+      <div style="background:rgba(204,170,0,0.05);border:1px solid rgba(204,170,0,0.2);border-radius:3px;padding:1rem 1.2rem">
+        <div style="font-family:'Orbitron',monospace;font-size:0.7rem;color:var(--yellow);margin-bottom:0.5rem;letter-spacing:0.1em">⚠ // servicio temporalmente sin créditos</div>
+        <p style="font-size:0.74rem;color:#888;line-height:1.7;margin-bottom:1rem">El servicio gratuito se quedó sin créditos. Podés usar tu propia key gratuita — te explicamos cómo obtenerla en 2 minutos.</p>
+        <div style="margin-bottom:0.8rem">
+          <div style="font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:#444;margin-bottom:0.4rem">elegí tu proveedor</div>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+            <button class="proveedor-btn active" id="btnGroq" onclick="setProveedor('groq')">Groq</button>
+            <button class="proveedor-btn" id="btnGemini" onclick="setProveedor('gemini')">Google Gemini</button>
+            <button class="proveedor-btn" id="btnOpenrouter" onclick="setProveedor('openrouter')">OpenRouter</button>
+          </div>
+        </div>
+        <div id="instrKey" style="font-size:0.72rem;color:#666;line-height:1.7;margin-bottom:0.8rem;padding:0.6rem 0.8rem;background:rgba(0,0,0,0.3);border-radius:2px"></div>
+        <div style="display:flex;gap:0.5rem">
+          <input class="url-input" id="inputKey" type="password" placeholder="pegá tu key acá..." style="flex:1" />
+          <button class="url-btn" onclick="guardarKeyPropia()" style="color:var(--green);border-color:rgba(0,204,68,0.3)">✓ usar</button>
+        </div>
+        <div style="font-size:0.62rem;color:#2a2a2a;margin-top:0.4rem">La key se guarda solo en tu navegador. No se envía a ningún servidor.</div>
+      </div>
+    </div>
+
     <div id="result"></div>
 
     <div class="legal-box">
@@ -752,6 +775,86 @@ function setPage(id) {
 }
 
 // ===================== ANALIZAR =====================
+const MI_KEY_GROQ = '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';
+let proveedorActual = 'groq';
+
+const INSTRUCCIONES = {
+  groq: '1. Entrá a <strong>console.groq.com</strong><br>2. Creá cuenta gratis con tu email<br>3. Andá a <strong>API Keys</strong> y apretá "Create API Key"<br>4. Copiá la key (empieza con gsk_) y pegala acá',
+  gemini: '1. Entrá a <strong>aistudio.google.com</strong><br>2. Iniciá sesión con tu cuenta de Google<br>3. Apretá <strong>"Get API Key"</strong> → "Create API key"<br>4. Copiá la key (empieza con AIza) y pegala acá',
+  openrouter: '1. Entrá a <strong>openrouter.ai</strong><br>2. Creá cuenta gratis<br>3. Andá a <strong>Keys</strong> y creá una nueva<br>4. Copiá la key (empieza con sk-or) y pegala acá'
+};
+
+function setProveedor(p) {
+  proveedorActual = p;
+  ['groq','gemini','openrouter'].forEach(id => {
+    document.getElementById('btn' + id.charAt(0).toUpperCase() + id.slice(1)).classList.toggle('active', id === p);
+  });
+  document.getElementById('instrKey').innerHTML = INSTRUCCIONES[p];
+}
+
+function guardarKeyPropia() {
+  const key = document.getElementById('inputKey').value.trim();
+  if (!key) return;
+  localStorage.setItem('adedo_key', key);
+  localStorage.setItem('adedo_proveedor', proveedorActual);
+  document.getElementById('panelKey').style.display = 'none';
+  analizar();
+}
+
+function mostrarPanelKey() {
+  const panel = document.getElementById('panelKey');
+  panel.style.display = 'block';
+  setProveedor('groq');
+  document.getElementById('instrKey').innerHTML = INSTRUCCIONES['groq'];
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function llamarAPI(prompt) {
+  const keyGuardada = localStorage.getItem('adedo_key');
+  const provGuardado = localStorage.getItem('adedo_proveedor') || 'groq';
+
+  // Primero intenta con la key propia si existe
+  if (keyGuardada) {
+    return await llamarConKey(prompt, keyGuardada, provGuardado);
+  }
+
+  // Si no, intenta con la key gratuita de ADedo
+  try {
+    return await llamarConKey(prompt, MI_KEY_GROQ, 'groq');
+  } catch(e) {
+    // Si falla, muestra el panel para key propia
+    mostrarPanelKey();
+    throw new Error('sin_creditos');
+  }
+}
+
+async function llamarConKey(prompt, key, proveedor) {
+  let url, headers, body;
+
+  if (proveedor === 'groq') {
+    url = 'https://api.groq.com/openai/v1/chat/completions';
+    headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
+    body = JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
+  } else if (proveedor === 'gemini') {
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key;
+    headers = { 'Content-Type': 'application/json' };
+    body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 1500 } });
+  } else if (proveedor === 'openrouter') {
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
+    body = JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
+  }
+
+  const res = await fetch(url, { method: 'POST', headers, body });
+  if (!res.ok) throw new Error('api_error');
+  const data = await res.json();
+
+  if (proveedor === 'gemini') {
+    return data.candidates[0].content.parts[0].text.trim();
+  }
+  return data.choices[0].message.content.trim();
+}
+
 let tipoActual = 'publico';
 
 function setTipo(t) {
@@ -862,19 +965,15 @@ LLAMADO:
 ${texto}`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500, messages: [{ role: "user", content: prompt }] })
-    });
-    const data = await response.json();
-    const raw = data.content.map(i => i.text || '').join('').trim();
+    const raw = await llamarAPI(prompt);
     let r;
     try { r = JSON.parse(raw); } catch { r = JSON.parse(raw.replace(/```json|```/g,'').trim()); }
     mostrarResultado(r);
     guardarEnHistorial(r, textoRaw.substring(0, 120));
   } catch(err) {
-    mostrarError('Error al analizar. Intentá de nuevo.');
+    if (err.message !== 'sin_creditos') {
+      mostrarError('Error al analizar. Revisá tu key o intentá de nuevo.');
+    }
     console.error(err);
   } finally {
     btn.disabled = false; spinner.style.display = 'none';
