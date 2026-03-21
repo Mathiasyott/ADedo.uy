@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADedo.uy # — Analizador de llamados laborales</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050505;
+  --surface: #0f0f0f;
+  --surface2: #161616;
+  --border: #1e1e1e;
+  --text: #e8e8e8;
+  --muted: #555;
+  --muted2: #333;
+  --red: #cc0000;
+  --red2: #ff2222;
+  --green: #00cc44;
+  --yellow: #ccaa00;
+  --blue: #3a7bd5;
+}
+body.light {
+  --bg: #f5f5f0;
+  --surface: #eeeeea;
+  --surface2: #e5e5e0;
+  --border: #d0d0c8;
+  --text: #1a1a1a;
+  --muted: #888;
+  --muted2: #aaa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Share Tech Mono',monospace; min-height:100vh; overflow-x:hidden; transition: background 0.3s, color 0.3s; }
+
+/* INTRO */
+#intro { position:fixed; inset:0; background:#000; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
+#matrix-canvas { position:absolute; inset:0; width:100%; height:100%; }
+#intro-content { position:relative; z-index:2; text-align:center; opacity:0; transform:scale(0.95); transition:opacity 0.6s ease,transform 0.6s ease; }
+#intro-content.visible { opacity:1; transform:scale(1); }
+#intro-title { font-family:'Orbitron',monospace; font-size:clamp(2.5rem,8vw,5rem); font-weight:900; letter-spacing:0.05em; color:#fff; text-shadow:0 0 30px rgba(204,0,0,0.8),0 0 60px rgba(204,0,0,0.4); }
+#intro-title .r { color:#ff2222; }
+#intro-title .h { color:#cc0000; font-size:0.7em; }
+#intro-by { margin-top:0.8rem; font-size:clamp(0.75rem,2vw,1rem); color:#666; letter-spacing:0.15em; }
+#intro-by span { color:#cc0000; }
+#intro-by .sym { color:#444; margin-left:0.5rem; }
+#intro-sub { margin-top:0.5rem; font-size:0.65rem; color:#333; letter-spacing:0.2em; text-transform:uppercase; }
+#intro-cursor { display:inline-block; width:10px; height:1.1em; background:#ff2222; margin-left:4px; vertical-align:middle; animation:blink 0.8s step-end infinite; }
+@keyframes blink { 50%{opacity:0} }
+.glitch { animation:glitch 0.15s steps(1) infinite; }
+@keyframes glitch {
+  0%   { text-shadow:0 0 30px rgba(204,0,0,0.8),2px 0 rgba(0,200,255,0.5),-2px 0 rgba(255,0,0,0.5); }
+  25%  { text-shadow:-2px 0 rgba(0,200,255,0.8),2px 2px rgba(255,0,0,0.5),0 0 20px rgba(204,0,0,0.6); }
+  50%  { text-shadow:2px -1px rgba(255,0,80,0.9),-2px 0 rgba(0,255,200,0.5),0 0 40px rgba(204,0,0,0.8); }
+  75%  { text-shadow:-1px 2px rgba(0,200,255,0.7),1px 0 rgba(255,50,0,0.6),0 0 30px rgba(200,0,0,0.7); }
+  100% { text-shadow:0 0 30px rgba(204,0,0,0.8),2px 0 rgba(0,200,255,0.5),-2px 0 rgba(255,0,0,0.5); }
+}
+#skip-btn { position:absolute; bottom:2rem; right:2rem; background:transparent; border:1px solid #222; color:#333; font-family:'Share Tech Mono',monospace; font-size:0.65rem; padding:0.4rem 0.8rem; cursor:pointer; letter-spacing:0.1em; transition:color 0.2s,border-color 0.2s; }
+#skip-btn:hover { color:#666; border-color:#444; }
+#intro.fade-out { animation:fadeOut 0.5s ease forwards; }
+@keyframes fadeOut { to{opacity:0;pointer-events:none} }
+
+/* APP */
+#app { display:none; min-height:100vh; padding:0 1rem 4rem; }
+#app.visible { display:block; }
+
+/* NAV */
+nav { border-bottom:1px solid var(--border); padding:0.8rem 0; position:sticky; top:0; background:rgba(5,5,5,0.97); backdrop-filter:blur(4px); z-index:100; }
+body.light nav { background:rgba(245,245,240,0.97); }
+.nav-inner { max-width:900px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; padding:0 0.5rem; }
+.nav-logo { font-family:'Orbitron',monospace; font-weight:900; font-size:0.95rem; color:var(--text); letter-spacing:0.05em; }
+.nav-logo .r { color:var(--red2); }
+.nav-logo .h { color:var(--red); }
+.nav-tabs { display:flex; gap:0.1rem; flex-wrap:wrap; }
+.nav-tab { background:transparent; border:none; color:var(--muted); font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:0.35rem 0.65rem; cursor:pointer; letter-spacing:0.05em; border-bottom:2px solid transparent; transition:color 0.15s,border-color 0.15s; }
+.nav-tab:hover { color:var(--text); }
+.nav-tab.active { color:var(--red2); border-bottom-color:var(--red2); }
+.nav-right { display:flex; align-items:center; gap:0.5rem; }
+.switch-modo { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'Share Tech Mono',monospace; font-size:0.62rem; padding:0.25rem 0.6rem; cursor:pointer; border-radius:2px; transition:all 0.15s; }
+.switch-modo:hover { border-color:var(--muted); color:var(--text); }
+
+/* PAGES */
+.page { display:none; max-width:900px; margin:0 auto; padding-top:2rem; }
+.page.active { display:block; }
+.section-header { margin-bottom:1.8rem; border-left:3px solid var(--red); padding-left:1rem; }
+.section-header h2 { font-family:'Orbitron',monospace; font-size:1.05rem; font-weight:700; color:var(--text); margin-bottom:0.3rem; }
+.section-header p { font-size:0.74rem; color:var(--muted); line-height:1.6; }
+
+/* TIPO TABS */
+.tipo-tabs { display:flex; gap:0.4rem; margin-bottom:1rem; }
+.ttab { padding:0.4rem 0.9rem; font-family:'Share Tech Mono',monospace; font-size:0.7rem; border:1px solid var(--border); border-radius:2px; cursor:pointer; background:transparent; color:var(--muted); transition:all 0.15s; }
+.ttab.active { background:var(--surface2); color:var(--text); border-color:var(--muted2); }
+
+/* AYUDA */
+.ayuda-btn { display:inline-flex; align-items:center; gap:0.4rem; background:transparent; border:1px solid var(--border); color:var(--blue); font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:0.38rem 0.8rem; border-radius:2px; cursor:pointer; margin-bottom:0.8rem; transition:border-color 0.15s; }
+.ayuda-btn:hover { border-color:var(--blue); }
+.ayuda-panel { display:none; background:var(--surface); border:1px solid #0d2a4a; border-radius:3px; padding:1.1rem 1.3rem; margin-bottom:1rem; font-size:0.74rem; line-height:1.8; color:#7aacdd; }
+.ayuda-panel.visible { display:block; }
+.ayuda-panel h3 { font-size:0.8rem; color:var(--blue); margin-bottom:0.8rem; font-family:'Orbitron',monospace; }
+.ayuda-panel ol { padding-left:1.2rem; }
+.ayuda-panel li { margin-bottom:0.5rem; }
+.ayuda-panel code { background:#0d1f33; padding:0.15rem 0.4rem; border-radius:2px; font-size:0.68rem; color:#5bb8ff; }
+.nota { margin-top:0.8rem; padding:0.5rem 0.8rem; background:rgba(58,123,213,0.07); border-left:2px solid var(--blue); color:var(--muted); font-size:0.68rem; border-radius:1px; }
+
+/* URL */
+.url-row { display:flex; gap:0.5rem; margin-bottom:0.4rem; }
+.url-input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:2px; color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0.62rem 0.9rem; outline:none; transition:border-color 0.2s; }
+.url-input:focus { border-color:var(--muted2); }
+.url-input::placeholder { color:var(--muted2); }
+.url-btn { background:var(--surface); border:1px solid var(--border); color:var(--blue); font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:0.62rem 0.9rem; border-radius:2px; cursor:pointer; white-space:nowrap; transition:border-color 0.15s; }
+.url-btn:hover { border-color:var(--blue); }
+.url-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.fase-label { font-size:0.6rem; color:var(--muted2); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:0.3rem; }
+.fase-nota { font-size:0.63rem; color:var(--muted2); line-height:1.5; margin-bottom:0.6rem; }
+.pdf-estado { display:none; font-size:0.68rem; padding:0.5rem 0.8rem; border-radius:2px; margin-bottom:0.6rem; line-height:1.5; }
+.pdf-estado.cargando { display:flex; align-items:center; gap:0.5rem; color:var(--blue); background:rgba(58,123,213,0.07); border:1px solid rgba(58,123,213,0.2); }
+.pdf-estado.ok { display:flex; align-items:center; gap:0.5rem; color:var(--green); background:rgba(0,204,68,0.07); border:1px solid rgba(0,204,68,0.2); }
+.pdf-estado.error { display:block; color:var(--yellow); background:rgba(204,170,0,0.05); border:1px solid rgba(204,170,0,0.2); }
+.sep { text-align:center; color:var(--muted2); font-size:0.63rem; letter-spacing:0.1em; margin:0.5rem 0; position:relative; }
+.sep::before,.sep::after { content:''; position:absolute; top:50%; width:44%; height:1px; background:var(--border); }
+.sep::before { left:0; } .sep::after { right:0; }
+.aviso-ia { display:none; align-items:center; gap:0.5rem; background:rgba(204,170,0,0.06); border:1px solid rgba(204,170,0,0.2); border-radius:2px; padding:0.5rem 0.8rem; font-size:0.68rem; color:var(--yellow); margin-bottom:0.6rem; }
+.aviso-ia.visible { display:flex; }
+
+/* INPUT */
+.input-area { background:var(--surface); border:1px solid var(--border); border-radius:3px; margin-bottom:0.6rem; transition:border-color 0.2s; }
+.input-area:focus-within { border-color:var(--muted2); }
+.input-label { display:block; padding:0.8rem 1rem 0.3rem; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted2); }
+textarea { width:100%; background:transparent; border:none; color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.78rem; line-height:1.7; padding:0.3rem 1rem 1rem; resize:vertical; min-height:170px; outline:none; }
+textarea::placeholder { color:var(--muted2); }
+
+/* LOADING */
+#loading-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:500; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem; }
+#loading-overlay.visible { display:flex; }
+.loading-spinner { width:36px; height:36px; border:2px solid rgba(204,0,0,0.2); border-top-color:#cc0000; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:1.5rem; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.loading-frase { font-size:clamp(0.8rem,2.5vw,1rem); color:#cc0000; max-width:440px; line-height:1.7; min-height:3rem; transition:opacity 0.4s; font-style:italic; }
+.loading-sub { font-size:0.6rem; color:#222; margin-top:1rem; letter-spacing:0.1em; }
+
+/* BTN */
+.btn-main { width:100%; background:var(--red); color:#fff; border:none; padding:0.9rem 2rem; font-family:'Orbitron',monospace; font-weight:700; font-size:0.85rem; letter-spacing:0.08em; cursor:pointer; border-radius:2px; transition:background 0.2s,transform 0.1s; display:flex; align-items:center; justify-content:center; gap:0.6rem; margin-top:0.6rem; }
+.btn-main:hover:not(:disabled) { background:#aa0000; }
+.btn-main:active:not(:disabled) { transform:scale(0.99); }
+.btn-main:disabled { opacity:0.3; cursor:not-allowed; }
+
+/* RESULTADOS */
+#result { margin-top:1.8rem; display:none; }
+.veredicto { border-radius:3px; padding:1.2rem; margin-bottom:1rem; display:flex; align-items:flex-start; gap:1rem; }
+.veredicto.rojo { background:rgba(204,0,0,0.08); border:1px solid rgba(204,0,0,0.25); }
+.veredicto.amarillo { background:rgba(204,170,0,0.07); border:1px solid rgba(204,170,0,0.25); }
+.veredicto.verde { background:rgba(0,204,68,0.07); border:1px solid rgba(0,204,68,0.25); }
+.semaforo { font-size:2rem; flex-shrink:0; }
+.veredicto-texto h2 { font-family:'Orbitron',monospace; font-size:1rem; font-weight:700; margin-bottom:0.3rem; }
+.veredicto.rojo h2 { color:var(--red2); }
+.veredicto.amarillo h2 { color:var(--yellow); }
+.veredicto.verde h2 { color:var(--green); }
+.veredicto-texto p { font-size:0.74rem; color:var(--muted); line-height:1.6; }
+.badge-tipo { display:inline-block; font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.15rem 0.5rem; border-radius:1px; margin-bottom:0.4rem; font-weight:700; }
+.badge-pub { background:rgba(58,123,213,0.12); color:var(--blue); border:1px solid rgba(58,123,213,0.25); }
+.badge-priv { background:rgba(160,100,255,0.1); color:#a064ff; border:1px solid rgba(160,100,255,0.25); }
+.seccion { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:1.1rem 1.3rem; margin-bottom:0.8rem; }
+.sec-title { font-family:'Orbitron',monospace; font-weight:700; font-size:0.63rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted2); margin-bottom:0.9rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border); }
+.señal { padding:0.7rem 0.9rem; border-radius:2px; margin-bottom:0.4rem; font-size:0.74rem; line-height:1.6; display:flex; gap:0.7rem; align-items:flex-start; }
+.señal:last-child { margin-bottom:0; }
+.señal.alta { background:rgba(204,0,0,0.07); border-left:2px solid var(--red); }
+.señal.media { background:rgba(204,170,0,0.05); border-left:2px solid var(--yellow); }
+.señal.baja { background:rgba(0,204,68,0.05); border-left:2px solid var(--green); }
+.señal.info { background:rgba(58,123,213,0.05); border-left:2px solid var(--blue); }
+.señal-icon { flex-shrink:0; font-size:0.85rem; margin-top:0.1rem; }
+.señal-content strong { display:block; margin-bottom:0.1rem; color:var(--text); font-size:0.76rem; }
+.señal-content span { color:var(--muted); }
+.puntaje { display:flex; align-items:center; gap:0.9rem; margin-top:0.9rem; padding-top:0.9rem; border-top:1px solid var(--border); }
+.puntaje-label { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted2); white-space:nowrap; }
+.puntaje-bar { flex:1; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+.puntaje-fill { height:100%; border-radius:2px; transition:width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.puntaje-num { font-family:'Orbitron',monospace; font-weight:700; font-size:0.9rem; }
+.resumen-text { font-size:0.76rem; line-height:1.9; color:var(--text); }
+.adv-estructural { background:rgba(204,170,0,0.04); border:1px solid rgba(204,170,0,0.18); border-radius:3px; padding:0.9rem 1.1rem; margin-bottom:0.8rem; font-size:0.72rem; line-height:1.7; color:#9a8000; }
+.adv-estructural strong { display:block; margin-bottom:0.3rem; color:var(--yellow); font-family:'Orbitron',monospace; font-size:0.63rem; letter-spacing:0.1em; }
+.examen-badge { display:inline-flex; align-items:center; gap:0.4rem; padding:0.25rem 0.6rem; border-radius:2px; font-size:0.66rem; font-weight:700; margin-top:0.4rem; }
+.ex-si { background:rgba(0,204,68,0.09); color:var(--green); border:1px solid rgba(0,204,68,0.25); }
+.ex-no { background:rgba(204,0,0,0.09); color:var(--red2); border:1px solid rgba(204,0,0,0.25); }
+.ex-par { background:rgba(204,170,0,0.07); color:var(--yellow); border:1px solid rgba(204,170,0,0.25); }
+
+/* CHECKLIST DOCUMENTOS */
+.checklist { background:rgba(58,123,213,0.05); border:1px solid rgba(58,123,213,0.2); border-radius:3px; padding:1rem 1.2rem; margin-bottom:0.8rem; }
+.checklist .sec-title { color:var(--blue); border-bottom-color:rgba(58,123,213,0.15); }
+.check-item { display:flex; align-items:flex-start; gap:0.6rem; font-size:0.74rem; color:var(--text); padding:0.3rem 0; border-bottom:1px solid rgba(58,123,213,0.08); }
+.check-item:last-child { border-bottom:none; }
+.check-item input[type=checkbox] { margin-top:0.2rem; accent-color:var(--blue); flex-shrink:0; }
+.check-item label { cursor:pointer; line-height:1.5; }
+.check-item label.done { text-decoration:line-through; color:var(--muted2); }
+
+/* MENSAJE FINAL */
+.msg-final { border-radius:3px; padding:1rem 1.2rem; margin-bottom:0.8rem; font-size:0.76rem; line-height:1.7; font-style:italic; }
+.msg-final.rojo { background:rgba(204,0,0,0.06); border:1px solid rgba(204,0,0,0.2); color:#aa3333; }
+.msg-final.amarillo { background:rgba(204,170,0,0.06); border:1px solid rgba(204,170,0,0.2); color:#887700; }
+.msg-final.verde { background:rgba(0,204,68,0.06); border:1px solid rgba(0,204,68,0.2); color:#227744; }
+
+/* WHATSAPP */
+.btn-whatsapp { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(37,211,102,0.1); border:1px solid rgba(37,211,102,0.3); color:#25d366; font-family:'Share Tech Mono',monospace; font-size:0.7rem; padding:0.5rem 1rem; border-radius:2px; cursor:pointer; text-decoration:none; transition:background 0.15s; margin-top:0.5rem; }
+.btn-whatsapp:hover { background:rgba(37,211,102,0.18); }
+
+.error-box { background:rgba(204,0,0,0.07); border:1px solid rgba(204,0,0,0.2); border-radius:3px; padding:0.8rem 1rem; font-size:0.74rem; color:var(--red2); margin-top:0.8rem; display:none; }
+.legal-box { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:1rem 1.2rem; margin-top:1.5rem; font-size:0.66rem; color:var(--muted2); line-height:1.7; }
+.legal-box strong { color:var(--muted); display:block; margin-bottom:0.3rem; font-family:'Orbitron',monospace; font-size:0.6rem; letter-spacing:0.1em; }
+
+/* PANEL KEY */
+.panel-key { background:rgba(204,170,0,0.05); border:1px solid rgba(204,170,0,0.2); border-radius:3px; padding:1rem 1.2rem; margin-top:1rem; display:none; }
+.panel-key h4 { font-family:'Orbitron',monospace; font-size:0.68rem; color:var(--yellow); margin-bottom:0.5rem; letter-spacing:0.1em; }
+.panel-key p { font-size:0.72rem; color:var(--muted); line-height:1.7; margin-bottom:0.8rem; }
+.proveedor-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:0.32rem 0.75rem; border-radius:2px; cursor:pointer; transition:all 0.15s; }
+.proveedor-btn:hover { border-color:var(--muted2); color:var(--text); }
+.proveedor-btn.active { border-color:var(--yellow); color:var(--yellow); background:rgba(204,170,0,0.07); }
+.instr-key { font-size:0.7rem; color:#666; line-height:1.7; margin:0.7rem 0; padding:0.6rem 0.8rem; background:rgba(0,0,0,0.3); border-radius:2px; }
+
+/* GLOSARIO */
+.glosario-search { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:2px; color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.76rem; padding:0.7rem 1rem; outline:none; margin-bottom:0.8rem; transition:border-color 0.2s; }
+.glosario-search:focus { border-color:var(--muted2); }
+.glosario-search::placeholder { color:var(--muted2); }
+.glosario-cats { display:flex; gap:0.3rem; flex-wrap:wrap; margin-bottom:1rem; }
+.cat-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'Share Tech Mono',monospace; font-size:0.62rem; padding:0.28rem 0.65rem; border-radius:2px; cursor:pointer; transition:all 0.15s; letter-spacing:0.05em; }
+.cat-btn:hover { border-color:var(--muted2); color:var(--text); }
+.cat-btn.active { border-color:var(--red); color:var(--red2); background:rgba(204,0,0,0.07); }
+.glosario-seccion { margin-bottom:1.5rem; }
+.glosario-seccion-title { font-family:'Orbitron',monospace; font-size:0.7rem; color:var(--red); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.8rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border); }
+.termino { border-bottom:1px solid var(--border); padding:0.9rem 0; }
+.termino:last-child { border-bottom:none; }
+.termino-nombre { font-family:'Orbitron',monospace; font-size:0.78rem; color:var(--red2); margin-bottom:0.35rem; }
+.termino-def { font-size:0.73rem; color:var(--text); line-height:1.7; }
+.termino-ejemplo { margin-top:0.3rem; font-size:0.68rem; color:var(--muted); font-style:italic; }
+.termino-nota { margin-top:0.3rem; font-size:0.68rem; color:#664400; font-style:italic; }
+
+/* CONSEJOS */
+.consejo-card { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:1.1rem 1.3rem; margin-bottom:0.8rem; }
+.consejo-titulo { font-family:'Orbitron',monospace; font-size:0.78rem; color:var(--text); margin-bottom:0.6rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer; }
+.consejo-titulo:hover { color:var(--red2); }
+.consejo-titulo .ico { font-size:1rem; }
+.consejo-body { font-size:0.73rem; color:var(--muted); line-height:1.8; display:none; padding-top:0.6rem; border-top:1px solid var(--border); }
+.consejo-body.visible { display:block; }
+.consejo-body strong { color:var(--text); }
+.consejo-body a { color:var(--blue); text-decoration:none; }
+.consejo-body a:hover { text-decoration:underline; }
+
+/* IMPUGNAR */
+.paso-imp { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:1rem 1.2rem; margin-bottom:0.6rem; display:flex; gap:1rem; align-items:flex-start; }
+.paso-num { font-family:'Orbitron',monospace; font-size:1.2rem; font-weight:900; color:var(--red); flex-shrink:0; line-height:1; margin-top:0.1rem; }
+.paso-content h4 { font-size:0.78rem; color:var(--text); margin-bottom:0.3rem; font-family:'Orbitron',monospace; }
+.paso-content p { font-size:0.72rem; color:var(--muted); line-height:1.7; }
+.paso-content a { color:var(--blue); text-decoration:none; }
+
+/* MIS LLAMADOS */
+.btn-sec { background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.7rem; padding:0.48rem 0.9rem; border-radius:2px; cursor:pointer; transition:border-color 0.15s; }
+.btn-sec:hover { border-color:var(--muted2); }
+.btn-rojo { border-color:rgba(204,0,0,0.3); color:var(--red2); }
+.btn-rojo:hover { border-color:var(--red); }
+.llamado-card { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:1rem 1.2rem; margin-bottom:0.6rem; }
+.llamado-card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem; margin-bottom:0.4rem; }
+.llamado-card-titulo { font-size:0.78rem; color:var(--text); font-family:'Orbitron',monospace; }
+.llamado-card-meta { font-size:0.66rem; color:var(--muted); line-height:1.6; }
+.llamado-estado { display:inline-block; font-size:0.58rem; padding:0.12rem 0.45rem; border-radius:1px; letter-spacing:0.08em; text-transform:uppercase; }
+.est-post { background:rgba(58,123,213,0.12); color:var(--blue); border:1px solid rgba(58,123,213,0.2); }
+.est-esp { background:rgba(204,170,0,0.08); color:var(--yellow); border:1px solid rgba(204,170,0,0.2); }
+.est-res { background:rgba(0,204,68,0.08); color:var(--green); border:1px solid rgba(0,204,68,0.2); }
+.est-desc { background:rgba(204,0,0,0.08); color:var(--red2); border:1px solid rgba(204,0,0,0.2); }
+.form-row { display:flex; flex-direction:column; gap:0.3rem; margin-bottom:0.7rem; }
+.form-label { font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted2); }
+.form-input { background:var(--surface); border:1px solid var(--border); border-radius:2px; color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.73rem; padding:0.52rem 0.8rem; outline:none; transition:border-color 0.2s; width:100%; }
+.form-input:focus { border-color:var(--muted2); }
+select.form-input { cursor:pointer; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:500; align-items:center; justify-content:center; padding:1rem; }
+.modal-overlay.visible { display:flex; }
+.modal { background:var(--surface); border:1px solid #2a2a2a; border-radius:3px; padding:1.5rem; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; }
+.modal h3 { font-family:'Orbitron',monospace; font-size:0.82rem; color:var(--text); margin-bottom:1.1rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border); }
+.modal-btns { display:flex; gap:0.5rem; margin-top:1rem; }
+
+/* FOOTER */
+footer { max-width:900px; margin:3rem auto 0; padding:1.5rem 0.5rem 2rem; border-top:1px solid var(--border); text-align:center; }
+.footer-logo { font-family:'Orbitron',monospace; font-size:0.82rem; font-weight:900; color:var(--muted2); margin-bottom:0.4rem; }
+.footer-logo .r { color:var(--red); }
+.footer-by { font-size:0.63rem; color:var(--muted2); line-height:1.7; margin-bottom:0.5rem; }
+.footer-by a { color:var(--muted2); text-decoration:none; }
+.footer-by a:hover { color:var(--muted); }
+.footer-frase { font-size:0.62rem; color:#222; font-style:italic; margin-bottom:0.5rem; transition:opacity 0.5s; }
+.footer-license { font-size:0.58rem; color:#1e1e1e; line-height:1.6; max-width:480px; margin:0 auto; }
+.footer-alfa { display:inline-block; font-size:0.56rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.12rem 0.45rem; border:1px solid #1a1a1a; color:#222; border-radius:1px; margin-bottom:0.5rem; }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro">
+  <canvas id="matrix-canvas"></canvas>
+  <div id="intro-content">
+    <div id="intro-title"><span class="r">A</span>Dedo<span class="r">.uy</span> <span class="h">#</span></div>
+    <div id="intro-by">by <span>@porthosuy</span> <span class="sym">◈</span></div>
+    <div id="intro-sub">analizador de llamados laborales · versión alfa<span id="intro-cursor"></span></div>
+  </div>
+  <button id="skip-btn" onclick="skipIntro()">[ saltear ]</button>
+</div>
+
+<!-- LOADING -->
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-frase" id="loadingFrase"></div>
+  <div class="loading-sub" id="loadingSub"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo"><span class="r">A</span>Dedo<span class="r">.uy</span> <span class="h">#</span></div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="setPage('analizar',this)">_analizar</button>
+        <button class="nav-tab" onclick="setPage('consejos',this)">_consejos</button>
+        <button class="nav-tab" onclick="setPage('glosario',this)">_glosario</button>
+        <button class="nav-tab" onclick="setPage('impugnar',this)">_impugnar</button>
+        <button class="nav-tab" onclick="setPage('misllamados',this)">_mis_llamados</button>
+      </div>
+      <div class="nav-right">
+        <button class="switch-modo" onclick="toggleModo()" id="btnModo">☀ claro</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ANALIZAR -->
+  <div class="page active" id="page-analizar">
+    <div class="section-header">
+      <h2>// analizar llamado</h2>
+      <p>Pegá las bases o el texto de un llamado —público o privado— y la IA detecta señales de acomodo, falta de transparencia y todo lo que no te dicen.</p>
+    </div>
+    <div class="tipo-tabs">
+      <button class="ttab active" id="tabPub" onclick="setTipo('publico')">🏛️ estatal / público</button>
+      <button class="ttab" id="tabPriv" onclick="setTipo('privado')">🏢 empresa privada</button>
+    </div>
+    <button class="ayuda-btn" onclick="toggleAyuda()">📄 ¿Tenés el llamado en PDF? → cómo transcribirlo con Gemini (recomendado)</button>
+    <div class="ayuda-panel" id="ayudaPanel">
+      <h3>// método recomendado: Gemini</h3>
+      <p style="margin-bottom:0.8rem;color:var(--muted);font-size:0.72rem">El método más confiable para cualquier PDF, especialmente los de Uruguay Concursa y portales del Estado.</p>
+      <ol>
+        <li>Abrí <strong>gemini.google.com</strong> — no hace falta cuenta.</li>
+        <li>Hacé clic en 📎 y subí el PDF.</li>
+        <li>Escribí: <code>Transcribí el contenido completo de este PDF tal cual está, sin resumir, sin agregar comentarios tuyos, sin hacer preguntas. Solo el texto del documento.</code></li>
+        <li>Copiá toda la respuesta y pegala abajo.</li>
+      </ol>
+      <div class="nota">⚠️ <strong>¿Por qué Gemini?</strong> Transcribe con más fidelidad que ChatGPT, que tiende a resumir aunque le pidas que no.</div>
+      <div class="nota" style="margin-top:0.5rem">💡 Si Gemini agrega frases como "¿Querés que edite algo?" — no importa, la app las detecta y las ignora.</div>
+    </div>
+    <div class="fase-label">🧪 lector de PDF por link — versión alfa</div>
+    <div class="url-row">
+      <input class="url-input" id="urlPdf" type="url" placeholder="Pegá el link directo al PDF (puede no funcionar con portales del Estado)" />
+      <button class="url-btn" id="urlBtn" onclick="cargarPdf()"><span id="urlBtnIcon">📥</span> intentar</button>
+    </div>
+    <div class="fase-nota">⚠️ Los portales estatales uruguayos bloquean el acceso externo a sus PDFs. Si falla, usá Gemini.</div>
+    <div class="pdf-estado" id="pdfEstado"></div>
+    <div class="sep">— o pegá el texto directamente —</div>
+    <div class="aviso-ia" id="avisoIA"><span>🤖</span><span>Se detectaron frases de IA. Se ignoran y se analiza solo el contenido del llamado.</span></div>
+    <div class="input-area">
+      <label class="input-label" for="llamado">texto del llamado o bases</label>
+      <textarea id="llamado" placeholder="Pegá acá el texto completo: requisitos, criterios de evaluación, condiciones, todo lo que tengas..." oninput="detectarIA()"></textarea>
+    </div>
+    <button class="btn-main" id="analizarBtn" onclick="analizar()">
+      <span id="btnText">▶ ANALIZAR</span>
+    </button>
+    <div class="panel-key" id="panelKey">
+      <h4>⚠ // servicio sin créditos</h4>
+      <p>El servicio gratuito se quedó sin créditos. Podés usar tu propia key gratuita — te explicamos cómo en 2 minutos.</p>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem">
+        <button class="proveedor-btn active" id="btnGroq" onclick="setProveedor('groq')">Groq</button>
+        <button class="proveedor-btn" id="btnGemini" onclick="setProveedor('gemini')">Google Gemini</button>
+        <button class="proveedor-btn" id="btnOpenrouter" onclick="setProveedor('openrouter')">OpenRouter</button>
+      </div>
+      <div class="instr-key" id="instrKey"></div>
+      <div style="display:flex;gap:0.5rem">
+        <input class="url-input" id="inputKey" type="password" placeholder="pegá tu key acá..." style="flex:1" />
+        <button class="url-btn" onclick="guardarKeyPropia()" style="color:var(--green);border-color:rgba(0,204,68,0.3)">✓ usar</button>
+      </div>
+      <div style="font-size:0.6rem;color:var(--muted2);margin-top:0.4rem">La key se guarda solo en tu navegador.</div>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+    <div id="result"></div>
+    <div class="legal-box">
+      <strong>// aviso legal</strong>
+      Esta aplicación analiza únicamente el texto que el usuario proporciona y detecta patrones objetivos de redacción. No acusa ni difama a ningún organismo público ni empresa privada. Si un llamado presenta señales de alerta, es porque así fue redactado por quien lo publicó. ADedo.uy no se hace responsable del uso de los resultados. Las cartas generadas deben ser revisadas antes de enviarlas: esto es un algoritmo, no un juicio humano. Confiá en tu propio criterio por encima de cualquier herramienta.
+    </div>
+  </div>
+
+  <!-- CONSEJOS -->
+  <div class="page" id="page-consejos">
+    <div class="section-header">
+      <h2>// consejos prácticos</h2>
+      <p>Lo que nadie te enseña pero que marca la diferencia cuando buscás trabajo en Uruguay.</p>
+    </div>
+    <div id="consejos-lista"></div>
+  </div>
+
+  <!-- GLOSARIO -->
+  <div class="page" id="page-glosario">
+    <div class="section-header">
+      <h2>// glosario de burocracia</h2>
+      <p>Lo que significan los términos que aparecen en los llamados y que nadie te explica.</p>
+    </div>
+    <input class="glosario-search" type="text" placeholder="buscar término..." oninput="filtrarGlosario(this.value)" />
+    <div class="glosario-cats" id="glosarioCats"></div>
+    <div id="glosario-lista"></div>
+  </div>
+
+  <!-- IMPUGNAR -->
+  <div class="page" id="page-impugnar">
+    <div class="section-header">
+      <h2>// cómo impugnar un llamado</h2>
+      <p>Si creés que el proceso fue irregular, estos son tus derechos y los pasos concretos para ejercerlos.</p>
+    </div>
+    <div class="seccion" style="margin-bottom:1rem;background:rgba(204,0,0,0.04);border-color:rgba(204,0,0,0.15)">
+      <p style="font-size:0.72rem;color:var(--muted);line-height:1.7">Antes de impugnar documentá todo: guardá las bases originales, capturas de pantalla, el puntaje que te asignaron y cualquier comunicación con el organismo. Sin documentación no hay impugnación posible.</p>
+    </div>
+    <div class="paso-imp"><div class="paso-num">01</div><div class="paso-content"><h4>Pedí la vista de las actuaciones</h4><p>Tenés derecho a ver el expediente completo: puntajes de todos los candidatos, actas del tribunal y criterios de evaluación. Pedilo por escrito al organismo. Amparado en la Ley 18.381 de acceso a la información pública.</p></div></div>
+    <div class="paso-imp"><div class="paso-num">02</div><div class="paso-content"><h4>Presentá el recurso de revocación</h4><p>Primer recurso administrativo. Lo presentás ante el mismo organismo dentro de los 10 días hábiles de notificada la resolución. Explicá concretamente qué irregularidad detectás.</p></div></div>
+    <div class="paso-imp"><div class="paso-num">03</div><div class="paso-content"><h4>Recurso jerárquico</h4><p>Si rechazan tu revocación, podés ir al jerarca superior (el Ministerio correspondiente). Tenés 10 días hábiles desde la notificación del rechazo.</p></div></div>
+    <div class="paso-imp"><div class="paso-num">04</div><div class="paso-content"><h4>Denuncia ante la JUTEP</h4><p>La Junta de Transparencia y Ética Pública recibe denuncias sobre irregularidades en organismos estatales. Puede ser anónimo. <a href="https://www.jutep.gub.uy" target="_blank">jutep.gub.uy</a></p></div></div>
+    <div class="paso-imp"><div class="paso-num">05</div><div class="paso-content"><h4>Tribunal de lo Contencioso Administrativo</h4><p>Si agotaste la vía administrativa, el TCA puede anular actos administrativos ilegítimos. Necesitás un abogado pero es el camino más poderoso.</p></div></div>
+    <div class="paso-imp"><div class="paso-num">06</div><div class="paso-content"><h4>Hacelo público</h4><p>Sin difamar, podés hacer pública tu experiencia. Los medios, redes y organizaciones sindicales son aliados. La presión pública no reemplaza el recurso legal pero muchas veces acelera la resolución.</p></div></div>
+    <div class="legal-box" style="margin-top:1.5rem"><strong>// importante</strong>Esta guía es informativa y no reemplaza el asesoramiento de un abogado. Los plazos y procedimientos pueden variar según el organismo y el tipo de llamado.</div>
+  </div>
+
+  <!-- MIS LLAMADOS -->
+  <div class="page" id="page-misllamados">
+    <div class="section-header">
+      <h2>// mis llamados</h2>
+      <p>Registrá los llamados a los que te postulaste y no pierdas el hilo.</p>
+    </div>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1.2rem">
+      <button class="btn-sec" onclick="abrirModal()">+ agregar llamado</button>
+      <button class="btn-sec btn-rojo" onclick="limpiarLlamados()">limpiar historial</button>
+    </div>
+    <div id="llamados-lista"></div>
+    <div id="llamados-vacio" style="font-size:0.74rem;color:var(--muted2);text-align:center;padding:2rem 0;display:none">No hay llamados registrados.<br><span style="color:var(--muted2);font-size:0.65rem">Los datos se guardan en tu navegador, no en ningún servidor.</span></div>
+  </div>
+
+  <footer>
+    <div class="footer-alfa">versión alfa</div>
+    <div class="footer-logo"><span class="r">A</span>Dedo<span class="r">.uy</span> #</div>
+    <div class="footer-by">hecha con vibe coding por <a href="https://www.tiktok.com/@porthosuy" target="_blank">@porthosuy</a> — Mathiasyott<br>esto no lo programó un desarrollador. lo construyó una persona con ganas usando IA como herramienta. vos también podés.</div>
+    <div class="footer-frase" id="footerFrase"></div>
+    <div class="footer-license">Licencia CC BY-NC-SA — podés usar, modificar y distribuir este código siempre que menciones el origen (@porthosuy), no lo uses para fines comerciales y lo distribuyas con la misma licencia. El conocimiento no se cobra.</div>
+  </footer>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>// agregar llamado</h3>
+    <div class="form-row"><label class="form-label">nombre o descripción</label><input class="form-input" id="m-titulo" type="text" placeholder="ej: Auxiliar administrativo ASSE" /></div>
+    <div class="form-row"><label class="form-label">organismo o empresa</label><input class="form-input" id="m-organismo" type="text" placeholder="ej: ASSE, BPS, empresa XYZ" /></div>
+    <div class="form-row"><label class="form-label">fecha límite de inscripción</label><input class="form-input" id="m-fecha" type="date" /></div>
+    <div class="form-row"><label class="form-label">estado</label><select class="form-input" id="m-estado"><option value="postulado">postulado</option><option value="espera">esperando resultados</option><option value="resultado">resultado conocido</option><option value="descartado">descartado</option></select></div>
+    <div class="form-row"><label class="form-label">notas (opcional)</label><input class="form-input" id="m-notas" type="text" placeholder="lo que quieras recordar" /></div>
+    <div class="modal-btns">
+      <button class="btn-main" style="flex:1;padding:0.7rem" onclick="guardarLlamado()">guardar</button>
+      <button class="btn-sec" onclick="cerrarModal()">cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ INTRO ============
+const canvas = document.getElementById('matrix-canvas');
+const ctx2 = canvas.getContext('2d');
+let cols, drops, fase = 0;
+const CHARS = 'アイウエオカキクケコ0123456789ABCDEF{}[]<>/\\|!@#$%^&*';
+
+function initMatrix() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  cols = Math.floor(canvas.width / 18);
+  drops = Array(cols).fill(1);
+}
+
+function drawMatrix() {
+  ctx2.fillStyle = 'rgba(0,0,0,0.06)';
+  ctx2.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < drops.length; i++) {
+    let char;
+    if (fase === 0) { char = Math.random() < 0.08 ? 'Ⓐ' : CHARS[Math.floor(Math.random()*CHARS.length)]; ctx2.fillStyle = Math.random() < 0.08 ? '#cc0000' : `rgba(0,${40+Math.floor(Math.random()*60)},0,0.8)`; }
+    else if (fase === 1) { char = Math.random() < 0.75 ? 'Ⓐ' : CHARS[Math.floor(Math.random()*CHARS.length)]; ctx2.fillStyle = Math.random() < 0.75 ? '#cc0000' : '#1a1a1a'; }
+    else { char = 'Ⓐ'; ctx2.fillStyle = `rgba(${180+Math.floor(Math.random()*75)},0,0,${0.4+Math.random()*0.5})`; }
+    ctx2.font = '14px Share Tech Mono';
+    ctx2.fillText(char, i * 18, drops[i] * 18);
+    if (drops[i] * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  }
+}
+
+let matrixInt;
+function runIntro() {
+  initMatrix();
+  matrixInt = setInterval(drawMatrix, 40);
+  setTimeout(() => { fase = 1; }, 1500);
+  setTimeout(() => { fase = 2; }, 2800);
+  setTimeout(() => {
+    const c = document.getElementById('intro-content');
+    c.classList.add('visible');
+    const t = document.getElementById('intro-title');
+    t.classList.add('glitch');
+    setTimeout(() => t.classList.remove('glitch'), 600);
+  }, 3200);
+  setTimeout(() => {
+    const t = document.getElementById('intro-title');
+    t.classList.add('glitch');
+    setTimeout(() => { t.classList.remove('glitch'); setTimeout(skipIntro, 300); }, 400);
+  }, 4800);
+}
+
+function skipIntro() {
+  clearInterval(matrixInt);
+  const intro = document.getElementById('intro');
+  intro.classList.add('fade-out');
+  setTimeout(() => { intro.style.display='none'; document.getElementById('app').classList.add('visible'); }, 500);
+}
+
+window.addEventListener('resize', initMatrix);
+window.addEventListener('load', runIntro);
+
+// ============ NAV ============
+function setPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ============ MODO ============
+function toggleModo() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  document.getElementById('btnModo').textContent = isLight ? '🌙 oscuro' : '☀ claro';
+  localStorage.setItem('adedo_modo', isLight ? 'light' : 'dark');
+}
+if (localStorage.getItem('adedo_modo') === 'light') { document.body.classList.add('light'); document.getElementById('btnModo').textContent = '🌙 oscuro'; }
+
+// ============ FOOTER FRASES ============
+const FOOTER_FRASES = [
+  'el mérito existe. a veces hasta funciona.',
+  'uruguay es chico. los apellidos se repiten.',
+  'el concurso más difícil de uruguay es el de conseguir trabajo.',
+  'si perdiste un llamado limpio, la culpa no fue tuya.',
+  'el sistema no está roto. está funcionando exactamente como lo diseñaron.',
+  'postulate igual. que sepan que existís.',
+  'la transparencia es un derecho, no un favor.',
+  'conocer tus derechos es el primer paso para exigirlos.',
+];
+function rotarFooter() {
+  const el = document.getElementById('footerFrase');
+  if (!el) return;
+  el.style.opacity = 0;
+  setTimeout(() => {
+    el.textContent = '"' + FOOTER_FRASES[Math.floor(Math.random()*FOOTER_FRASES.length)] + '"';
+    el.style.opacity = 1;
+  }, 500);
+}
+setTimeout(() => { rotarFooter(); setInterval(rotarFooter, 8000); }, 2000);
+
+// ============ ANALIZAR ============
+let tipoActual = 'publico';
+const MI_KEY = 'AIzaSyCRfDXQzKHLHPSd9oJSUz_OlyWA2dMphww';
+let proveedorActual = 'gemini';
+
+const INSTRUCCIONES_KEY = {
+  groq: '1. Entrá a <strong>console.groq.com</strong><br>2. Creá cuenta gratis<br>3. Andá a API Keys → Create API Key<br>4. Copiá la key (empieza con gsk_)',
+  gemini: '1. Entrá a <strong>aistudio.google.com</strong><br>2. Iniciá sesión con Google<br>3. Apretá Get API Key → Create API key<br>4. Copiá la key (empieza con AIza)',
+  openrouter: '1. Entrá a <strong>openrouter.ai</strong><br>2. Creá cuenta gratis<br>3. Andá a Keys → nueva key<br>4. Copiá la key (empieza con sk-or)'
+};
+
+function setProveedor(p) {
+  proveedorActual = p;
+  ['groq','gemini','openrouter'].forEach(id => document.getElementById('btn'+id.charAt(0).toUpperCase()+id.slice(1)).classList.toggle('active', id===p));
+  document.getElementById('instrKey').innerHTML = INSTRUCCIONES_KEY[p];
+}
+
+function guardarKeyPropia() {
+  const key = document.getElementById('inputKey').value.trim();
+  if (!key) return;
+  localStorage.setItem('adedo_key', key);
+  localStorage.setItem('adedo_prov', proveedorActual);
+  document.getElementById('panelKey').style.display = 'none';
+  analizar();
+}
+
+function mostrarPanelKey() {
+  const p = document.getElementById('panelKey');
+  p.style.display = 'block';
+  setProveedor('groq');
+  p.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+async function llamarAPI(prompt) {
+  const keyGuardada = localStorage.getItem('adedo_key');
+  const provGuardado = localStorage.getItem('adedo_prov') || 'groq';
+  if (keyGuardada) return await llamarConKey(prompt, keyGuardada, provGuardado);
+  try { return await llamarConKey(prompt, MI_KEY, 'gemini'); }
+  catch(e) { mostrarPanelKey(); throw new Error('sin_creditos'); }
+}
+
+async function llamarConKey(prompt, key, prov) {
+  let url, headers, body;
+  if (prov === 'groq') {
+    url = 'https://api.groq.com/openai/v1/chat/completions';
+    headers = { 'Content-Type':'application/json', 'Authorization':'Bearer '+key };
+    body = JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:1500, messages:[{role:'user',content:prompt}] });
+  } else if (prov === 'gemini') {
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+key;
+    headers = { 'Content-Type':'application/json' };
+    body = JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{maxOutputTokens:1500} });
+  } else {
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = { 'Content-Type':'application/json', 'Authorization':'Bearer '+key };
+    body = JSON.stringify({ model:'meta-llama/llama-3.3-70b-instruct:free', max_tokens:1500, messages:[{role:'user',content:prompt}] });
+  }
+  const res = await fetch(url, { method:'POST', headers, body });
+  if (!res.ok) throw new Error('api_error');
+  const data = await res.json();
+  if (prov === 'gemini') return data.candidates[0].content.parts[0].text.trim();
+  return data.choices[0].message.content.trim();
+}
+
+function setTipo(t) {
+  tipoActual = t;
+  document.getElementById('tabPub').classList.toggle('active', t==='publico');
+  document.getElementById('tabPriv').classList.toggle('active', t==='privado');
+}
+
+function toggleAyuda() { document.getElementById('ayudaPanel').classList.toggle('visible'); }
+
+const FRASES_IA = ['¿querés que','¿necesitás','aquí está tu','acá está tu','he transcripto','¿hay algo más','puedo ayudarte','¿quieres que','aquí tienes','here is','let me know','feel free','¿deseas que','con gusto puedo','espero que esto'];
+
+function detectarIA() {
+  const t = document.getElementById('llamado').value.toLowerCase();
+  document.getElementById('avisoIA').classList.toggle('visible', FRASES_IA.some(f => t.includes(f)));
+}
+
+function limpiarTextoIA(texto) {
+  return texto.split('\n').filter(l => !FRASES_IA.some(f => l.toLowerCase().includes(f))).join('\n').trim();
+}
+
+// FRASES DE CARGA
+const FRASES_CARGA = [
+  'analizando si ya saben quién entra...',
+  'buscando al sobrino del intendente...',
+  'revisando si el tribunal ya almorzó con el candidato...',
+  'calculando cuántos padrinos tiene este llamado...',
+  'el sistema cargando... como siempre...',
+  'detectando niveles de acomodo...',
+  'buscando la frase "a criterio del tribunal"...',
+  'revisando si el plazo es tan corto que ya cerró...',
+  'contando requisitos imposibles para menores de 40...',
+  'verificando si el tribunal existe o es un fantasma...',
+  'analizando si "experiencia comprobable" significa lo que creés...',
+  'revisando cuántos años de experiencia piden para un cargo de 18 años...',
+  'buscando al paracaidista que ya tiene el cargo reservado...',
+  'calculando la probabilidad de que esto sea limpio... procesando...',
+  'revisando si el sueldo justifica los 47 requisitos...',
+  'detectando si "disponibilidad inmediata" significa que ya renunciaste a todo...',
+  'analizando si pedirte licencia de conducir tiene algún sentido para este cargo...',
+  'buscando la letra chica que nadie lee...',
+  'revisando si "se valorará" significa que no importa para nada...',
+  'calculando cuántos candidatos reales va a haber además del elegido...',
+  'detectando señales de que el llamado fue escrito pensando en una persona...',
+  'revisando si pedirte inglés avanzado para atender el teléfono tiene lógica...',
+  'buscando al cuñado del jefe en los requisitos...',
+  'detectando si "equipo dinámico" significa que vas a trabajar solo...',
+  'analizando si "remuneración a convenir" conviene para vos o para ellos...',
+  'revisando si los criterios de la entrevista los inventaron sobre la marcha...',
+  'buscando el requisito que filtra al 99% de la población...',
+  'calculando si con este sueldo llegás a fin de mes en Montevideo...',
+  'detectando si "joven profesional" significa que no te van a pagar bien...',
+  'analizando si el posgrado requerido existe en Uruguay...',
+  'revisando si la antigüedad requerida es mayor que la edad del organismo...',
+  'buscando señales de vida en los criterios de evaluación...',
+  'calculando cuánto tiempo perdiste si esto ya está arreglado...',
+  'detectando si el llamado fue copiado del currículum de alguien específico...',
+  'analizando la temperatura del acomodo... está caliente...',
+  'revisando si "proceso transparente" es oxímoron en este contexto...',
+  'buscando al fantasma que va a integrar el tribunal...',
+  'casi listo... el sistema también tarda en reconocer sus propios vicios...',
+  'revisando si algún apellido se repite demasiado en el organismo...',
+  'detectando si el hijo de alguien ya tiene este cargo reservado...',
+  'analizando si la experiencia requerida la tiene exactamente una familia...',
+  'buscando dinastías laborales en el sector público...',
+  'revisando si "conocido de la casa" es un requisito no escrito...',
+  'calculando cuántas generaciones lleva trabajando la misma familia acá...',
+  'analizando si el acomodo viene de arriba, de adentro, o de los dos lados...',
+  'revisando si "recomendado por alguien de confianza" cuenta como mérito...',
+  'buscando al conocido del conocido que ya tiene todo arreglado...',
+  'buscando al activista sindical cuyo sobrino casualmente aprobó el concurso...',
+  'revisando si el delegado gremial también tiene familia que colocar...',
+  'revisando si el sobrino político del tribunal está en la lista de concursantes...',
+  'detectando si la lucha de clases tiene excepciones para los de adentro...',
+  'procesando... procesando... esto puede llevar un rato...',
+  'analizando el nivel de imposibilidad de los requisitos...',
+  'buscando al candidato que ya firmó el contrato antes del llamado...',
+  'revisando si piden carné de manipulación de alimentos para un cargo administrativo...',
+  'calculando cuántos uruguayos cumplen todos estos requisitos... tres...',
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+let loadingInt;
+function mostrarLoading() {
+  const ov = document.getElementById('loading-overlay');
+  ov.classList.add('visible');
+  const frases = shuffle(FRASES_CARGA);
+  let idx = 0;
+  const el = document.getElementById('loadingFrase');
+  const sub = document.getElementById('loadingSub');
+  el.textContent = '"' + frases[0] + '"';
+  sub.textContent = '';
+  loadingInt = setInterval(() => {
+    idx++;
+    if (idx < frases.length) {
+      el.style.opacity = 0;
+      setTimeout(() => {
+        el.textContent = '"' + frases[idx] + '"';
+        el.style.opacity = 1;
+      }, 400);
+    }
+    if (idx === 4) {
+      sub.style.opacity = 0;
+      setTimeout(() => {
+        sub.textContent = 'todo lo que leíste... es una broma. ¿O quizás no? 😳🤔😬';
+        sub.style.opacity = 1;
+      }, 400);
+    }
+  }, 1800);
+}
+
+function ocultarLoading() {
+  clearInterval(loadingInt);
+  document.getElementById('loading-overlay').classList.remove('visible');
+}
+
+async function cargarPdf() {
+  const url = document.getElementById('urlPdf').value.trim();
+  if (!url) { mostrarError('Pegá una URL primero.'); return; }
+  const estado = document.getElementById('pdfEstado');
+  const btn = document.getElementById('urlBtn');
+  btn.disabled = true;
+  document.getElementById('urlBtnIcon').textContent = '⏳';
+  estado.className = 'pdf-estado cargando';
+  estado.innerHTML = 'intentando leer el PDF...';
+  try {
+    const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    const res = await fetch(proxy, { signal:AbortSignal.timeout(12000) });
+    if (!res.ok) throw new Error('bloqueado');
+    const buffer = await res.arrayBuffer();
+    if (!window.pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    const pdf = await window.pdfjsLib.getDocument({ data:buffer }).promise;
+    let texto = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      texto += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    if (!texto.trim() || texto.trim().length < 50) throw new Error('sin texto');
+    document.getElementById('llamado').value = texto.trim();
+    detectarIA();
+    estado.className = 'pdf-estado ok';
+    estado.innerHTML = `✅ PDF cargado — ${pdf.numPages} página(s). Revisá el texto y analizá.`;
+  } catch(err) {
+    estado.className = 'pdf-estado error';
+    if (err.message.includes('sin texto')) {
+      estado.innerHTML = '⚠️ PDF escaneado — usá Gemini (botón de ayuda arriba).';
+    } else {
+      estado.innerHTML = '⚠️ No se pudo leer — el sitio bloquea el acceso. Descargá el PDF y usá Gemini.';
+    }
+  } finally {
+    btn.disabled = false;
+    document.getElementById('urlBtnIcon').textContent = '📥';
+  }
+}
+
+async function analizar() {
+  const textoRaw = document.getElementById('llamado').value.trim();
+  if (!textoRaw || textoRaw.length < 80) { mostrarError('Pegá más texto. Con tan poco no hay mucho para analizar.'); return; }
+  const texto = limpiarTextoIA(textoRaw);
+  document.getElementById('analizarBtn').disabled = true;
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  mostrarLoading();
+
+  const ctxTipo = tipoActual === 'publico'
+    ? 'Es un llamado del SECTOR PÚBLICO uruguayo. Analizá: si hay examen de conocimientos y qué peso tiene, balance objetivo/subjetivo del puntaje, si la antigüedad interna aplasta a externos, si el tribunal está identificado (en Uruguay casi nunca lo está — mencionalo como advertencia estructural), si los criterios de entrevista están definidos o son "a criterio del tribunal", si hay instancia de impugnación, si los requisitos parecen hechos para alguien ya adentro. También detectá qué documentos pide el llamado.'
+    : 'Es un llamado del SECTOR PRIVADO. Analizá: si ocultan el sueldo, si los requisitos son desproporcionados, si el perfil es muy específico, si mezclan niveles contradictorios, si las condiciones están vagas. También detectá qué documentos pide el llamado.';
+
+  const prompt = `Sos un experto en análisis de llamados laborales uruguayos. ${ctxTipo}
+
+Respondé SOLO con JSON sin texto adicional:
+
+{
+  "tipo_detectado": "publico"|"privado",
+  "organismo_detectado": "nombre del organismo o empresa si aparece en el texto, sino null",
+  "veredicto": "rojo"|"amarillo"|"verde",
+  "titulo_veredicto": "frase corta directa",
+  "descripcion_veredicto": "una oración",
+  "puntaje_sospecha": 0-100,
+  "hay_examen_conocimientos": "si"|"no"|"parcial"|"no_especifica",
+  "descripcion_examen": "descripción breve",
+  "balance_puntaje": "balance criterios objetivos vs subjetivos",
+  "señales": [{"nivel":"alta"|"media"|"baja"|"info","titulo":"string","descripcion":"string"}],
+  "documentos_requeridos": ["lista de documentos que el llamado pide explícitamente"],
+  "advertencias_estructurales": ["string"],
+  "resumen": "párrafo final directo sin filtros"
+}
+
+Sé directo, uruguayo, sin rodeos.
+
+LLAMADO:
+${texto}`;
+
+  try {
+    // Mínimo 6 segundos de carga para que se lean las frases
+    const [raw] = await Promise.all([
+      llamarAPI(prompt),
+      new Promise(r => setTimeout(r, 6000))
+    ]);
+    let r;
+    try { r = JSON.parse(raw); } catch { r = JSON.parse(raw.replace(/```json|```/g,'').trim()); }
+    ocultarLoading();
+    mostrarResultado(r);
+    guardarEnHistorial(r, textoRaw.substring(0, 120));
+  } catch(err) {
+    ocultarLoading();
+    if (err.message !== 'sin_creditos') mostrarError('Error al analizar. Revisá tu conexión o intentá de nuevo.');
+    console.error(err);
+  } finally {
+    document.getElementById('analizarBtn').disabled = false;
+  }
+}
+
+const MSGS_VEREDICTO = {
+  rojo: [
+    'Postulate si querés, pero avisale a tu padrino primero. Ah, no tenés padrino. Bueno, igual intentalo — a veces se gana.',
+    'Esto huele a reservado. Pero los milagros existen. Postulate y que sea lo que tenga que ser.',
+    'El tribunal probablemente ya sabe el nombre del ganador. Pero no te lo van a decir.',
+  ],
+  amarillo: [
+    'Puede estar limpio. Puede no estarlo. Uruguay es así — la duda es parte del juego.',
+    'Zona gris. Postulate con los ojos abiertos y sin hacerte muchas ilusiones.',
+    'Ni muy limpio ni muy trucado. Jugá, pero sabé con qué te podés encontrar.',
+  ],
+  verde: [
+    'Ojo, que esté limpio no significa que sea fácil. Pero al menos la cancha está pareja. Suerte, la vas a necesitar igual.',
+    'Parece un llamado honesto. Eso no es común. Aprovechalo.',
+    'La cancha parece pareja. Ahora depende de vos. Juntá los papeles y postulate.',
+  ]
+};
+
+function mostrarResultado(r) {
+  const iconos = { rojo:'🚨', amarillo:'⚠️', verde:'✅' };
+  const colores = { rojo:'#cc0000', amarillo:'#ccaa00', verde:'#00cc44' };
+  const color = colores[r.veredicto] || '#555';
+  const esPublico = (r.tipo_detectado || tipoActual) === 'publico';
+  const badge = esPublico ? '<span class="badge-tipo badge-pub">🏛️ sector público</span>' : '<span class="badge-tipo badge-priv">🏢 sector privado</span>';
+  const organismo = r.organismo_detectado ? `<div style="font-size:0.65rem;color:var(--muted2);margin-top:0.2rem">📍 ${r.organismo_detectado}</div>` : '';
+  const exMap = { si:['ex-si','✅ hay examen de conocimientos'], no:['ex-no','❌ no hay examen de conocimientos'], parcial:['ex-par','⚠️ examen parcial o con bajo peso'], no_especifica:['ex-par','❓ no se especifica si hay examen'] };
+  const ex = exMap[r.hay_examen_conocimientos] || exMap['no_especifica'];
+  const señalesHTML = (r.señales||[]).map(s => {
+    const ico = {alta:'🔴',media:'🟡',baja:'🟢',info:'🔵'}[s.nivel]||'⚪';
+    return `<div class="señal ${s.nivel}"><div class="señal-icon">${ico}</div><div class="señal-content"><strong>${s.titulo}</strong><span>${s.descripcion}</span></div></div>`;
+  }).join('');
+  const advHTML = (r.advertencias_estructurales||[]).length
+    ? `<div class="adv-estructural"><strong>// advertencias estructurales</strong>${r.advertencias_estructurales.map(a=>`<p style="margin-bottom:0.25rem">— ${a}</p>`).join('')}</div>` : '';
+  const puntaje = Math.min(100, Math.max(0, r.puntaje_sospecha||0));
+
+  // Checklist documentos
+  let checklistHTML = '';
+  if (r.documentos_requeridos && r.documentos_requeridos.length) {
+    const items = r.documentos_requeridos.map((doc, i) =>
+      `<div class="check-item"><input type="checkbox" id="doc${i}" onchange="toggleDoc(${i})"><label id="docLabel${i}" for="doc${i}">${doc}</label></div>`
+    ).join('');
+    checklistHTML = `<div class="checklist"><div class="sec-title">📋 // documentos que te piden — no te olvides de nada</div>${items}<div style="font-size:0.68rem;color:var(--muted2);margin-top:0.6rem;font-style:italic">Tachá los que ya tenés. Juntá todo antes de postularte.</div></div>`;
+  }
+
+  // Mensaje final con humor
+  const msgs = MSGS_VEREDICTO[r.veredicto] || MSGS_VEREDICTO['amarillo'];
+  const msg = msgs[Math.floor(Math.random()*msgs.length)];
+
+  // WhatsApp
+  const textoWA = encodeURIComponent(`Analicé un llamado con ADedo.uy y el índice de sospecha fue ${puntaje}/100. ${r.titulo_veredicto}. Analizá el tuyo en: https://mathiasyott.github.io/ADedo.uy`);
+  const btnWA = `<a href="https://wa.me/?text=${textoWA}" target="_blank" class="btn-whatsapp">📲 compartir resultado por WhatsApp</a>`;
+
+  document.getElementById('result').innerHTML = `
+    <div class="veredicto ${r.veredicto}">
+      <div class="semaforo">${iconos[r.veredicto]||'❓'}</div>
+      <div class="veredicto-texto">${badge}${organismo}<h2>${r.titulo_veredicto}</h2><p>${r.descripcion_veredicto}</p></div>
+    </div>
+    <div class="seccion">
+      <div class="sec-title">// examen de conocimientos</div>
+      <div class="examen-badge ${ex[0]}">${ex[1]}</div>
+      <p style="margin-top:0.7rem;font-size:0.72rem;color:var(--muted);line-height:1.6">${r.descripcion_examen||''}</p>
+      ${r.balance_puntaje?`<p style="margin-top:0.5rem;font-size:0.68rem;color:var(--muted2);line-height:1.6;border-top:1px solid var(--border);padding-top:0.5rem">${r.balance_puntaje}</p>`:''}
+    </div>
+    <div class="seccion">
+      <div class="sec-title">// señales detectadas</div>
+      ${señalesHTML||'<p style="font-size:0.72rem;color:var(--muted2)">No se detectaron señales particulares.</p>'}
+      <div class="puntaje">
+        <span class="puntaje-label">índice de sospecha</span>
+        <div class="puntaje-bar"><div class="puntaje-fill" id="barraFill" style="width:0%;background:${color}"></div></div>
+        <span class="puntaje-num" style="color:${color}">${puntaje}/100</span>
+      </div>
+    </div>
+    ${advHTML}
+    ${checklistHTML}
+    <div class="seccion">
+      <div class="sec-title">// veredicto final</div>
+      <p class="resumen-text">${r.resumen}</p>
+    </div>
+    <div class="msg-final ${r.veredicto}">💬 ${msg}<br><br>— Merecés la oportunidad. No te rindas.</div>
+    ${btnWA}
+  `;
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior:'smooth', block:'start' });
+  setTimeout(() => { const b = document.getElementById('barraFill'); if(b) b.style.width = puntaje+'%'; }, 150);
+}
+
+function toggleDoc(i) {
+  const label = document.getElementById('docLabel'+i);
+  if (label) label.classList.toggle('done');
+}
+
+function mostrarError(msg) {
+  const b = document.getElementById('errorBox');
+  b.textContent = '⚠ ' + msg;
+  b.style.display = 'block';
+}
+
+// ============ GLOSARIO ============
+const GLOSARIO = {
+  'Tipos de contrato y cargo': [
+    { t:'Cargo presupuestado', d:'Cargo permanente dentro del presupuesto estatal. Genera estabilidad laboral y es muy difícil de perder. Es lo que todos quieren pero pocos obtienen en los primeros llamados.', e:'Ej: "El cargo es presupuestado con todas las garantías del Estatuto del Funcionario Público."' },
+    { t:'Cargo a término', d:'Contrato temporal con fecha de vencimiento definida. No genera estabilidad laboral. Al vencer el plazo el organismo puede no renovarlo sin dar explicaciones.', e:'Ej: "El cargo es a término por 12 meses, renovable a criterio del organismo."' },
+    { t:'Contrato de función pública', d:'Modalidad de contratación estatal que no genera los mismos derechos que el cargo presupuestado. Más flexible para el organismo, menos seguro para el trabajador.', e:'Ej: "La contratación se realizará bajo la modalidad de contrato de función pública art. 13."' },
+    { t:'Cargo de confianza', d:'Cargo designado directamente por el jerarca político sin necesidad de concurso. No requiere méritos comprobables — requiere confianza política. Es legal pero opaco.', e:'Ej: "Se designa en carácter de particular confianza al Sr. X en el cargo de asesor."' },
+    { t:'Interinato', d:'Ocupás un cargo temporalmente mientras el titular no está. Cuando el titular vuelve, el interino sale. No genera derechos sobre el cargo.', e:'Ej: "Se llama a concurso para cubrir interinamente el cargo durante la licencia del titular."' },
+    { t:'Suplencia', d:'Cubrís a una persona específica por licencia, enfermedad u otra causa. Similar al interinato pero generalmente más corto y más ligado a una persona puntual.', e:'Ej: "Suplencia por licencia maternal, duración estimada 3 meses."' },
+    { t:'Provisoriato', d:'Período de prueba antes de quedar presupuestado definitivamente. Generalmente dura 12 meses. Si lo pasás bien, quedás presupuestado. Si no, te pueden dar de baja.', e:'Ej: "El cargo es en carácter provisorio por 12 meses, transcurrido el cual quedará designado definitivamente."' },
+  ],
+  'El proceso de concurso': [
+    { t:'Llamado a concurso', d:'Proceso formal por el cual un organismo convoca candidatos para cubrir un cargo. En teoría es abierto y transparente. En la práctica, los criterios pueden estar diseñados para favorecer a alguien específico.', e:'' },
+    { t:'Lista de prelación', d:'Ranking de candidatos ordenados por puntaje al finalizar el proceso. El primero tiene prioridad para el cargo. Si el puntaje está manipulado, el orden también lo está.', e:'Ej: "Se elaborará una lista de prelación con los candidatos que superen la evaluación."' },
+    { t:'Méritos y antecedentes', d:'Criterio de evaluación basado en el historial del candidato: títulos, cursos, antigüedad, experiencia. Es el criterio más fácil de manipular porque depende de quién puntúa y cómo.', e:'Ej: "La evaluación se realizará en base a méritos y antecedentes documentados."' },
+    { t:'Prueba de oposición', d:'Examen de conocimientos con puntaje definido. Es el criterio más objetivo del proceso — o sabés o no sabés. Su ausencia es una señal de alerta importante.', e:'Ej: "Se realizará una prueba escrita eliminatoria sobre derecho administrativo."' },
+    { t:'Tribunal evaluador', d:'Comisión que evalúa a los candidatos. En Uruguay casi nunca se publica quiénes lo integran antes del proceso. Eso es una falta de transparencia estructural — no podés saber si hay conflicto de intereses.', e:'Ej: "La evaluación estará a cargo de un tribunal designado por la dirección."' },
+    { t:'Instancia de impugnación', d:'Derecho del candidato a cuestionar formalmente una decisión si considera que fue irregular. No todos los llamados la mencionan, pero existe por ley en el sector público.', e:'Ej: "Los candidatos podrán interponer recursos dentro de los 10 días hábiles."' },
+    { t:'Recurso de revocación', d:'Primer recurso administrativo para cuestionar una decisión del Estado. Lo presentás ante el mismo organismo dentro de los 10 días hábiles de notificada la resolución.', e:'' },
+    { t:'Recurso jerárquico', d:'Segundo recurso. Si el organismo rechaza tu revocación, podés ir al jerarca superior (el Ministerio correspondiente). También 10 días hábiles.', e:'' },
+  ],
+  'Estructura del Estado': [
+    { t:'Escalafón', d:'El sistema de jerarquías y categorías del Estado uruguayo. Define los niveles de cargo, los requisitos para cada uno y las posibilidades de ascenso.', e:'' },
+    { t:'Grado', d:'Tu nivel dentro del escalafón. Determina directamente tu sueldo. A mayor grado, mayor sueldo. Los llamados especifican el grado del cargo ofrecido.', e:'Ej: "Escalafón A, Grado 4, Denominación: Asesor XIII."' },
+    { t:'Antigüedad', d:'Años trabajados en el organismo o en el Estado. En muchos llamados suma puntos automáticamente, lo que favorece a quien ya está adentro del sistema aunque sea menos capaz.', e:'Ej: "Se otorgarán 2 puntos por cada año de antigüedad en el organismo."' },
+    { t:'Uruguay Concursa', d:'Portal oficial del Estado uruguayo donde se publican los llamados a concurso del sector público. Existe en teoría para democratizar el acceso. La calidad de los llamados publicados varía muchísimo.', e:'Portal: concursos.gub.uy' },
+    { t:'ONSC', d:'Oficina Nacional del Servicio Civil. Regula el empleo público, publica datos de vínculos laborales con el Estado y supervisa los procesos de concurso.', e:'Web: gub.uy/oficina-nacional-servicio-civil' },
+    { t:'JUTEP', d:'Junta de Transparencia y Ética Pública. Recibe denuncias sobre irregularidades éticas en el sector público. Podés denunciar de forma anónima.', e:'Web: jutep.gub.uy' },
+    { t:'TCA', d:'Tribunal de lo Contencioso Administrativo. El órgano judicial que puede anular actos administrativos del Estado que sean ilegítimos. Requiere abogado pero es el camino más poderoso.', e:'' },
+  ],
+  'Acomodo y cultura laboral': [
+    { t:'A dedo', d:'Designación directa de una persona para un cargo sin concurso o con un concurso armado. "Lo pusieron a dedo" significa que la selección ya estaba decidida de antemano.', e:'' },
+    { t:'Paracaidista', d:'Persona que aparece trabajando en un organismo público sin haber pasado por ningún concurso ni llamado. No se sabe cómo entró, simplemente "cayó". Generalmente resultado de designación directa o vínculos políticos. El acomodo en su forma más visible y descarada.', e:'' },
+    { t:'Padrino / Palanca', d:'El contacto político o personal que ayuda a conseguir un cargo independientemente de los méritos. "Tener palanca" es tener a alguien que intercede por vos en el sistema.', e:'' },
+    { t:'Rosca', d:'La red de contactos, favores e influencias políticas que mueve decisiones por debajo de la mesa. "Estar en la rosca" es tener acceso a esa red.', e:'' },
+    { t:'Enchufado', d:'El que entró al trabajo por contactos, no por méritos. Sinónimo coloquial de acomodado.', e:'' },
+    { t:'Nepotismo', d:'Favorecimiento de familiares para acceder a cargos o beneficios. En Uruguay existe legislación que limita el empleo de familiares en el mismo organismo, pero no siempre se cumple.', e:'' },
+  ],
+  'Documentos y trámites': [
+    { t:'Carné de salud', d:'Certificado médico que acredita que una persona está en condiciones de salud para trabajar. En Uruguay es requisito frecuente en llamados. Se puede tramitar gratis o a bajo costo a través de ASSE o tu mutualista. Algunos requisitos médicos específicos (como exámenes de vista para trabajos de oficina) son cuestionados como discriminatorios ya que no tienen relación directa con el desempeño del cargo.', e:'Se tramita en policlínicas de ASSE o centros de salud habilitados.' },
+    { t:'Certificado de antecedentes judiciales', d:'Documento que certifica que no tenés condenas penales vigentes. Antes se llamaba "certificado de buena conducta" — ese nombre ya no se usa. Se tramita en el Poder Judicial o por internet.', e:'Web: poderjudicial.gub.uy' },
+    { t:'Constancia de votación', d:'Documento que certifica que votaste en las últimas elecciones. Es requisito en muchos llamados públicos. Si cumpliste 18 años después de las elecciones, no tenés constancia porque no pudiste votar — en ese caso podés solicitar un certificado que acredite que no estabas habilitado para votar.', e:'Se tramita en la Corte Electoral: corteelectoral.gub.uy' },
+    { t:'Escolaridad', d:'Certificado que acredita tu historial académico: materias cursadas, calificaciones, asistencia. Se solicita en la institución donde estudiaste — UTU, secundaria (ANEP/CES), o universidad.', e:'UTU: utu.edu.uy | CES: ces.edu.uy | UdelaR: udelar.edu.uy' },
+    { t:'Credencial cívica', d:'Tu documento de identidad para votar. En muchos llamados se pide como documento de identificación junto con la cédula de identidad.', e:'' },
+    { t:'Declaración jurada de incompatibilidades', d:'Formulario que firmás declarando que no tenés otros vínculos con el Estado que sean incompatibles con el cargo al que concursás. Es obligatorio en llamados del sector público.', e:'' },
+  ],
+  'Derechos y cupos': [
+    { t:'Cupo afrodescendiente', d:'La Ley 19.122 reserva el 8% de los cargos del Estado para personas afrodescendientes. El criterio es la autopercepción y la ascendencia — no la apariencia física. Si tenés raíces afrodescendientes y te autopercibís como tal, tenés derecho a postularte por este cupo independientemente de tu tono de piel.', e:'' },
+    { t:'Cupo trans', d:'La Ley 19.684 (Ley Trans) establece un cupo del 1% de los cargos del Estado para personas trans. Reconoce la discriminación histórica que este colectivo ha sufrido en el mercado laboral formal.', e:'' },
+    { t:'Cupo discapacidad', d:'La Ley 18.651 establece que el 4% de los cargos del Estado deben ser ocupados por personas con discapacidad. Para acceder necesitás certificación de discapacidad vigente del BPS.', e:'Certificación: bps.gub.uy' },
+    { t:'Qué hacer si no se respeta un cupo', d:'Si creés que un llamado no respetó los cupos legales, podés: 1) Presentar recurso de revocación ante el organismo, 2) Denunciar ante la JUTEP, 3) Contactar al MIDES (Ministerio de Desarrollo Social) que supervisa el cumplimiento de los cupos, 4) Consultar con organizaciones de la sociedad civil especializadas.', e:'' },
+  ],
+  'Gremios y acción colectiva': [
+    { t:'Gremio / Sindicato', d:'Organización de trabajadores que defiende derechos laborales, negocia condiciones de trabajo y lucha contra la precarización. Históricamente han sido fundamentales para conquistar derechos que hoy damos por sentados.\n\nComo toda institución humana, los gremios no son perfectos. Pero la historia laboral uruguaya no se entiende sin ellos. Afiliarte es ejercer un derecho conquistado con mucho sacrificio.', e:'' },
+    { t:'Afiliación gremial', d:'El acto de unirte formalmente a un gremio. Te da derecho a participar en asambleas, votar, ser votado, acceder a asesoramiento legal y beneficiarte de los acuerdos colectivos negociados. En Uruguay la afiliación es voluntaria y está protegida — nadie puede discriminarte por estar afiliado.', e:'' },
+    { t:'Derecho de huelga', d:'Derecho constitucional en Uruguay (Art. 57 de la Constitución). Los trabajadores pueden declarar la huelga para defender sus derechos sin que eso sea motivo de despido. Es uno de los derechos laborales más protegidos del país.', e:'' },
+    { t:'Paro', d:'Medida de lucha gremial donde los trabajadores dejan de trabajar por un tiempo determinado (horas, días) para presionar al empleador o al Estado. Puede ser parcial o total.', e:'' },
+    { t:'Huelga', d:'Medida de lucha más extensa que el paro. Implica la interrupción colectiva del trabajo por tiempo indefinido hasta que se resuelva el conflicto.', e:'' },
+    { t:'Ocupación', d:'Medida de lucha donde los trabajadores toman el control físico del lugar de trabajo sin trabajar. En Uruguay tiene protección constitucional como extensión del derecho de huelga. Implica quedarse en el lugar para impedir que funcione con esquiroles (personas que reemplacen a los huelguistas).', e:'' },
+    { t:'Trabajo a reglamento', d:'Medida de lucha donde los trabajadores cumplen estrictamente las normas y procedimientos, sin ninguna iniciativa extra. Reduce la productividad sin que sea técnicamente una huelga.', e:'' },
+    { t:'Quite de colaboración', d:'Los trabajadores dejan de realizar tareas que no están en su contrato formal pero que normalmente hacen por costumbre. Similar al trabajo a reglamento.', e:'' },
+    { t:'Paro parcial', d:'Paro que afecta solo a una parte de la jornada o a una sección específica del lugar de trabajo.', e:'' },
+    { t:'Movilización', d:'Marcha, concentración o manifestación pública de los trabajadores para visibilizar un conflicto o reclamo.', e:'' },
+    { t:'Piquete', d:'Grupo de trabajadores que se ubica en la entrada del lugar de trabajo para persuadir a otros de no ingresar durante una huelga.', e:'' },
+    { t:'Asamblea gremial', d:'Instancia democrática donde los trabajadores afiliados se reúnen para tomar decisiones colectivas: votar medidas de lucha, elegir representantes, aprobar acuerdos. Todos tienen voz. Las decisiones se toman por mayoría.', e:'' },
+    { t:'Negociación colectiva', d:'Proceso de diálogo entre trabajadores (representados por el gremio) y empleadores para acordar condiciones laborales. En Uruguay se da en los Consejos de Salarios por rama de actividad.', e:'' },
+    { t:'Convenio colectivo', d:'Acuerdo firmado entre el gremio y el empleador que establece condiciones de trabajo, salarios y derechos. Tiene fuerza legal y se aplica a todos los trabajadores del sector, estén afiliados o no.', e:'' },
+    { t:'PIT-CNT', d:'Plenario Intersindical de Trabajadores — Convención Nacional de Trabajadores. Es la central sindical única de Uruguay, que agrupa a la mayoría de los gremios del país. Es la voz colectiva del movimiento obrero uruguayo.', e:'Web: pitcnt.uy' },
+  ],
+};
+
+function renderGlosario(filtro='', cat='') {
+  const lista = document.getElementById('glosario-lista');
+  const f = filtro.toLowerCase();
+  let html = '';
+  Object.entries(GLOSARIO).forEach(([categoria, terminos]) => {
+    if (cat && cat !== categoria) return;
+    const filtered = terminos.filter(t => !f || t.t.toLowerCase().includes(f) || t.d.toLowerCase().includes(f));
+    if (!filtered.length) return;
+    html += `<div class="glosario-seccion"><div class="glosario-seccion-title">// ${categoria}</div>`;
+    filtered.forEach(t => {
+      html += `<div class="termino"><div class="termino-nombre">${t.t}</div><div class="termino-def">${t.d.replace(/\n/g,'<br>')}</div>${t.e?`<div class="termino-ejemplo">${t.e}</div>`:''}</div>`;
+    });
+    html += '</div>';
+  });
+  lista.innerHTML = html || '<p style="color:var(--muted2);font-size:0.73rem;padding:1rem 0">No se encontraron términos.</p>';
+}
+
+function filtrarGlosario(v) { renderGlosario(v, catActual); }
+
+let catActual = '';
+function setCat(c, btn) {
+  catActual = c;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGlosario(document.querySelector('.glosario-search').value, c);
+}
+
+function initGlosario() {
+  const catsDiv = document.getElementById('glosarioCats');
+  catsDiv.innerHTML = '<button class="cat-btn active" onclick="setCat(\'\',this)">todas</button>' +
+    Object.keys(GLOSARIO).map(c => `<button class="cat-btn" onclick="setCat('${c}',this)">${c.toLowerCase()}</button>`).join('');
+  renderGlosario();
+}
+initGlosario();
+
+// ============ CONSEJOS ============
+const CONSEJOS = [
+  { ico:'📄', t:'Cómo armar un CV para Uruguay real', b:`<strong>Lo básico:</strong> nombre, contacto, formación y experiencia. En Uruguay el CV no tiene que ser largo — 1 o 2 páginas máximo.<br><br><strong>Incluí experiencia informal:</strong> changas, cuidado de personas, trabajo en comercio familiar, voluntariado. Todo cuenta si lo describís bien.<br><br><strong>Formato:</strong> PDF siempre. Word puede verse diferente en distintas computadoras.<br><br><strong>No pongas foto</strong> a menos que te la pidan explícitamente.<br><br><strong>Adaptalo a cada llamado:</strong> destacá la experiencia que más se relaciona con el cargo al que te postulás.` },
+  { ico:'💌', t:'Carta de recomendación — qué es y cómo pedirla', b:`Una carta de recomendación es un documento escrito por alguien que conoce tu trabajo y da fe de tus capacidades y actitudes laborales.<br><br><strong>¿A quién pedirla?</strong> A un ex jefe, un docente que te conoce bien, el responsable de una pasantía, o alguien de confianza que haya visto cómo trabajás.<br><br><strong>Cómo pedirla sin quedar mal:</strong> explicale para qué es, dále tiempo suficiente (no la pidas para mañana), y ofrecele información sobre el cargo para que pueda personalizarla.<br><br><strong>Qué debe incluir:</strong> quién la escribe, su relación con vos, qué destacan de tu trabajo, y datos de contacto para verificar.<br><br>Siempre es buena idea tener una o dos cartas de recomendación listas aunque no te las pidan.` },
+  { ico:'🏥', t:'Cómo sacar el carné de salud', b:`El carné de salud acredita que estás en condiciones físicas para trabajar. Es requisito frecuente en llamados.<br><br><strong>Si tenés FONASA (ASSE o mutualista):</strong> tramitalo a través de tu prestador de salud. En muchos casos es gratuito o tiene costo mínimo.<br><br><strong>Sin cobertura:</strong> podés ir a policlínicas de ASSE en tu departamento. El costo es accesible.<br><br><strong>Qué incluye:</strong> generalmente examen médico general, análisis de sangre y orina, y a veces examen de vista o audición según el cargo.<br><br><strong>Importante:</strong> pedí el carné específico para el tipo de trabajo (carné para manipulación de alimentos es diferente al carné general). Verificá qué tipo pide el llamado.` },
+  { ico:'🎓', t:'Cómo pedir la escolaridad', b:`La escolaridad certifica tu historial académico. Cada institución la da de forma diferente:<br><br><strong>Secundaria (CES/CETP):</strong> presentate con tu cédula en la institución donde cursaste o en la oficina departamental del CES. También hay trámite online en algunos casos.<br><br><strong>UTU:</strong> en la institución donde cursaste o en las oficinas centrales de UTU. Llevá cédula y si tenés, el número de matrícula.<br><br><strong>Universidad de la República:</strong> cada facultad la emite de forma diferente. Consultá en la secretaría de tu facultad o en el portal de la UdelaR.<br><br><strong>Universidad privada:</strong> directamente en la secretaría académica de la institución.<br><br>Pedila con tiempo — puede demorar días o semanas según la institución.` },
+  { ico:'⚖️', t:'Certificado de antecedentes judiciales', b:`Certifica que no tenés condenas penales vigentes. Antes se llamaba "certificado de buena conducta" — ese nombre ya no se usa oficialmente.<br><br><strong>Cómo tramitarlo:</strong> podés hacerlo online en <a href="https://www.poderjudicial.gub.uy" target="_blank">poderjudicial.gub.uy</a> o presencialmente en el Poder Judicial.<br><br><strong>Costo:</strong> tiene un costo accesible. Verificá el valor actualizado en el sitio del Poder Judicial.<br><br><strong>Vigencia:</strong> generalmente se acepta con hasta 3 meses de antigüedad, pero verificá qué pide el llamado específico.` },
+  { ico:'🗳️', t:'Constancia de votación', b:`Certifica que votaste en las últimas elecciones nacionales. Es requisito común en llamados del sector público.<br><br><strong>Cómo obtenerla:</strong> en la Corte Electoral (<a href="https://www.corteelectoral.gub.uy" target="_blank">corteelectoral.gub.uy</a>) o en las oficinas departamentales.<br><br><strong>Si cumpliste 18 después de las elecciones:</strong> no tenés constancia porque no pudiste votar. En ese caso podés solicitar un certificado que acredite que no estabas habilitado para votar en esa elección. Consultá en la Corte Electoral cómo tramitarlo.<br><br><strong>Si no votaste por otros motivos:</strong> igualmente podés tramitar la constancia — acredita participación, no obligación.` },
+  { ico:'📋', t:'Cómo documentar experiencia informal', b:`En Uruguay mucha gente trabaja en negro o de forma informal. Eso no significa que no tengas experiencia — significa que tenés que documentarla de otra manera.<br><br><strong>Opciones para documentar experiencia informal:</strong><br>• Carta del empleador o cliente certificando que trabajaste para él/ella<br>• Fotos, trabajos realizados, portafolio si aplica<br>• Declaración jurada propia describiendo el trabajo realizado<br>• Referencias de personas que puedan dar testimonio<br><br><strong>Importante:</strong> no todos los llamados aceptan experiencia informal. Leé bien las bases — algunos piden experiencia "acreditada mediante recibos de sueldo o certificado de trabajo". En esos casos la experiencia informal puede no sumar puntos aunque la tengas.` },
+  { ico:'🤝', t:'Cómo encarar una entrevista laboral', b:`<strong>Antes:</strong> investigá el organismo o empresa. Leé las bases del llamado de nuevo. Pensá en 3 fortalezas tuyas que se relacionen con el cargo.<br><br><strong>Durante:</strong> llegá 10 minutos antes. Saludá con nombre si te lo presentan. Hablá de experiencias concretas, no de generalidades ("trabajé en tal lugar haciendo tal cosa" es mejor que "soy muy responsable").<br><br><strong>El silencio está bien:</strong> si necesitás un segundo para pensar, tomátelo. No llenés el silencio con palabras vacías.<br><br><strong>Al final:</strong> preguntá algo sobre el cargo o el equipo. Muestra interés genuino.<br><br><strong>Después:</strong> si tenés un contacto, podés enviar un mail agradeciendo la entrevista. No es obligatorio pero suma.` },
+  { ico:'❓', t:'Qué preguntas hacerle vos al entrevistador', b:`La entrevista es bidireccional. Vos también estás evaluando si ese lugar te conviene. Preguntas útiles:<br><br>• ¿Cómo es un día típico en este cargo?<br>• ¿Cuáles son los principales desafíos del puesto?<br>• ¿Cómo es el equipo con el que voy a trabajar?<br>• ¿Hay posibilidades de formación o capacitación?<br>• ¿Cuáles son los próximos pasos del proceso de selección?<br><br><strong>Preguntas sobre sueldo:</strong> si no lo dijeron, podés preguntar al final. Es tu derecho saber cuánto vas a ganar.<br><br>No preguntes cosas que están en las bases del llamado — muestra que no las leíste.` },
+  { ico:'⚡', t:'Los cupos — afrodescendiente, trans y discapacidad', b:`Uruguay tiene cupos reservados en el Estado. Si aplican a tu situación, son un derecho — no un favor.<br><br><strong>Cupo afrodescendiente (Ley 19.122):</strong> 8% de los cargos. Basado en autopercepción y ascendencia. No importa el tono de piel — si tenés raíces afrodescendientes y te autopercibís como tal, podés postularte por este cupo.<br><br><strong>Cupo trans (Ley 19.684):</strong> 1% de los cargos. Para personas trans que han sufrido discriminación histórica en el mercado laboral formal.<br><br><strong>Cupo discapacidad (Ley 18.651):</strong> 4% de los cargos. Necesitás certificación de discapacidad vigente del BPS.<br><br>Si creés que no se respetó un cupo, podés denunciarlo ante la JUTEP o el MIDES.` },
+];
+
+function initConsejos() {
+  const lista = document.getElementById('consejos-lista');
+  lista.innerHTML = CONSEJOS.map((c, i) => `
+    <div class="consejo-card">
+      <div class="consejo-titulo" onclick="toggleConsejo(${i})">
+        <span class="ico">${c.ico}</span> ${c.t}
+        <span style="margin-left:auto;color:var(--muted2);font-size:0.8rem" id="consejo-arrow-${i}">▼</span>
+      </div>
+      <div class="consejo-body" id="consejo-body-${i}">${c.b}</div>
+    </div>
+  `).join('');
+}
+
+function toggleConsejo(i) {
+  const body = document.getElementById('consejo-body-'+i);
+  const arrow = document.getElementById('consejo-arrow-'+i);
+  body.classList.toggle('visible');
+  arrow.textContent = body.classList.contains('visible') ? '▲' : '▼';
+}
+initConsejos();
+
+// ============ MIS LLAMADOS ============
+function getLlamados() { try { return JSON.parse(localStorage.getItem('adedo_llamados')||'[]'); } catch { return []; } }
+function saveLlamados(l) { localStorage.setItem('adedo_llamados', JSON.stringify(l)); }
+
+function guardarEnHistorial(resultado, fragmento) {
+  const llamados = getLlamados();
+  llamados.unshift({ id:Date.now(), titulo:'Análisis: '+fragmento.substring(0,60)+'...', organismo:resultado.organismo_detectado||(resultado.tipo_detectado==='publico'?'Sector público':'Sector privado'), veredicto:resultado.veredicto, puntaje:resultado.puntaje_sospecha, fecha:new Date().toLocaleDateString('es-UY'), estado:'postulado', notas:resultado.titulo_veredicto });
+  if (llamados.length > 50) llamados.pop();
+  saveLlamados(llamados);
+  renderLlamados();
+}
+
+function abrirModal() { document.getElementById('modalOverlay').classList.add('visible'); }
+function cerrarModal() {
+  document.getElementById('modalOverlay').classList.remove('visible');
+  ['m-titulo','m-organismo','m-notas'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('m-fecha').value='';
+  document.getElementById('m-estado').value='postulado';
+}
+
+function guardarLlamado() {
+  const titulo = document.getElementById('m-titulo').value.trim();
+  if (!titulo) return;
+  const llamados = getLlamados();
+  llamados.unshift({ id:Date.now(), titulo, organismo:document.getElementById('m-organismo').value.trim(), fecha:document.getElementById('m-fecha').value, estado:document.getElementById('m-estado').value, notas:document.getElementById('m-notas').value.trim(), veredicto:null, puntaje:null });
+  saveLlamados(llamados);
+  renderLlamados();
+  cerrarModal();
+}
+
+function eliminarLlamado(id) { saveLlamados(getLlamados().filter(l => l.id!==id)); renderLlamados(); }
+function limpiarLlamados() { if (confirm('¿Borrar todos los llamados guardados?')) { saveLlamados([]); renderLlamados(); } }
+
+const ESTADOS = { postulado:['est-post','postulado'], espera:['est-esp','esperando resultados'], resultado:['est-res','resultado conocido'], descartado:['est-desc','descartado'] };
+const VMAP = { rojo:'🚨', amarillo:'⚠️', verde:'✅' };
+
+function renderLlamados() {
+  const llamados = getLlamados();
+  const lista = document.getElementById('llamados-lista');
+  const vacio = document.getElementById('llamados-vacio');
+  if (!llamados.length) { lista.innerHTML=''; vacio.style.display='block'; return; }
+  vacio.style.display='none';
+  lista.innerHTML = llamados.map(l => {
+    const est = ESTADOS[l.estado]||ESTADOS['postulado'];
+    const vi = l.veredicto ? VMAP[l.veredicto]+' ' : '';
+    return `<div class="llamado-card">
+      <div class="llamado-card-header">
+        <div><div class="llamado-card-titulo">${vi}${l.titulo}</div><div class="llamado-card-meta">${l.organismo||''}${l.fecha?' · vence: '+l.fecha:''}</div></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
+          <span class="llamado-estado ${est[0]}">${est[1]}</span>
+          <button class="btn-sec btn-rojo" style="font-size:0.58rem;padding:0.18rem 0.45rem" onclick="eliminarLlamado(${l.id})">eliminar</button>
+        </div>
+      </div>
+      ${l.notas?`<div style="font-size:0.68rem;color:var(--muted);margin-top:0.3rem">${l.notas}</div>`:''}
+      ${l.puntaje!==null?`<div style="font-size:0.66rem;color:var(--muted2);margin-top:0.3rem">índice de sospecha del análisis: ${l.puntaje}/100</div>`:''}
+    </div>`;
+  }).join('');
+}
+renderLlamados();
+</script>
+</body>
+</html>
