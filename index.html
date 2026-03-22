@@ -762,6 +762,9 @@ const REGLAS_PRIVADO = {
     {p:/(arma tu (propio )?equipo|suma personas a tu equipo|referidos)/i,t:'Estructura de reclutamiento en red',d:'Señal de esquema multinivel. Tus ingresos dependen de reclutar a otros.'},
     {p:/(inversion inicial|kit de (entrada|inicio|trabajo)|pagas por (los papeles|el material|las herramientas|usar la oficina))/i,t:'Pago para ingresar al trabajo',d:'En ningún empleo legítimo tenés que pagar para trabajar. Esto es una señal de estafa.'},
     {p:/(capacitacion (arancelada|paga|con costo)|formacion paga)/i,t:'Capacitación con costo',d:'Te cobran por acceder al trabajo. En empleos legítimos la capacitación la paga la empresa.'},
+    {p:/(trabajo independiente sin sueldo base|sin sueldo fijo|sin salario base|cien por ciento comision|100% comision|solo comisiones|unicamente comisiones)/i,t:'Sin sueldo base — no es un empleo',d:'Este aviso lo dice explícitamente: no hay sueldo fijo. Solo cobrás si vendés. Si no vendés, no cobrás nada. No hay relación de dependencia, no hay BPS, no hay aguinaldo, no hay licencia. Técnicamente no es un empleo — es un autoempleo con infraestructura ajena.'},
+    {p:/(emprendedor|independiente|autogestión|autogestion|libertad financiera|tu propio negocio|sin jefe).{0,100}(comision|comisión|ventas)/i,t:'Lenguaje de autoempleo disfrazado de oferta laboral',d:'Frases como "emprendedor", "independiente", "libertad financiera" en una oferta de ventas son señal de que no es un empleo — es un esquema donde vos ponés el trabajo y la empresa se queda con la estructura.'},
+    {p:/(agente|asesor|corredor).{0,30}(inmobiliario|propiedades|bienes raices).{0,200}(sin sueldo|comision|independiente|emprendedor)/i,t:'Agente inmobiliario a comisión — revisá la Ley 20.380',d:'Desde enero 2025 la Ley 20.380 regula la actividad inmobiliaria en Uruguay. Si no te inscribís en el Registro Nacional de Operadores Inmobiliarios, necesitás un contrato formal con un operador inscripto que asuma responsabilidad por tus operaciones. Si la empresa no te da ese contrato y solo te ofrece comisiones, no tenés respaldo legal.'},
   ],
   media:[
     {p:/salario nominal.{0,20}a convenir|remuneracion.{0,20}a convenir|sueldo.{0,20}a convenir/i,t:'Sueldo "a convenir" — falta de transparencia',d:'No publicar el sueldo es una estrategia para que no puedas comparar con el mercado. El poder queda del lado de la empresa.'},
@@ -770,6 +773,10 @@ const REGLAS_PRIVADO = {
     {p:/(oportunidades de crecimiento|desarrollarte profesionalmente)/i,t:'"Oportunidades de crecimiento" sin especificar',d:'Promesa vaga sin detalles. ¿En cuánto tiempo? ¿En qué condiciones?'},
     {p:/periodo de prueba/i,t:'Período de prueba mencionado',d:'Verificá que especifique duración. En Uruguay no puede superar los 90 días.'},
     {p:/(perfil emprendedor|mentalidad ganadora)/i,t:'Lenguaje motivacional sin condiciones concretas',d:'Mucho entusiasmo y poca información sobre lo que vas a ganar.'},
+    {p:/(únete|sumate|buscamos j[oó]venes talentos|equipo joven|ganas de crecer|ganas de superarte|energ[ií]a y dinamismo|actitud proactiva).{0,200}(no menciona|sin especificar|a convenir)/i,t:'Aviso motivacional sin condiciones concretas',d:'El aviso está lleno de entusiasmo pero no especifica condiciones reales: qué tipo de contrato, si hay BPS, si el sueldo fijo es el único ingreso garantizado.'},
+    {p:/(premios por logros|incentivos por objetivos|comisiones por ventas).{0,100}(sueldo fijo|salario base)/i,t:'Sueldo base + incentivos sin especificar',d:'El sueldo fijo puede ser muy bajo y los incentivos imposibles de alcanzar. Preguntá cuánto cobra alguien que no llega a los objetivos — eso es lo que te van a pagar al principio.'},
+    {p:/(trabajar bajo presi[oó]n|alta presi[oó]n|ambiente exigente)/i,t:'"Trabajo bajo presión" como requisito',d:'Señal de que el ambiente puede ser agresivo o los objetivos imposibles de cumplir.'},
+    {p:/(capacitaci[oó]n constante|formaci[oó]n continua).{0,50}(no menciona costo|sin aclarar|gratuita)/i,t:'Capacitación sin aclarar si es paga',d:'Verificá antes de entrar si la capacitación tiene algún costo o si implica firmar algo.'},
   ],
   positiva:[
     {p:/\$[\d\.]+|salario.{0,10}\$[\d]|remuneracion.{0,10}\$[\d]/i,t:'Publica el sueldo',d:'La empresa muestra el sueldo. Eso es transparencia.',pts:10},
@@ -871,9 +878,34 @@ function analizarBasico(texto) {
 
   // Solo sector privado
   if (!esPublico) {
-    if (!/sueldo|salario|\$\d|nominales/i.test(t)) {
+    const mencionaSueldo = /sueldo|salario|\$\d|nominales/i.test(t);
+    if (!mencionaSueldo) {
       puntaje += 10;
       señales.push({nivel:'media', titulo:'No menciona el sueldo', descripcion:'En el sector privado, ocultar el sueldo es señal de que la empresa no quiere que compares con el mercado o que lo que ofrecen no es competitivo.'});
+    } else {
+      // Detectar sueldo por debajo del SMN vigente (enero 2026: $24.572)
+      const SMN = 24572;
+      // Detectar comisión pura sin sueldo base (aunque no digan el monto)
+      const esComisionPura = /(trabajo independiente sin sueldo base|sin sueldo (fijo|base)|cien por ciento comisi|100% comisi|solo comisiones|unicamente comisiones|a comision y sin sueldo)/i.test(t);
+      if (esComisionPura) {
+        puntaje += 20;
+        señales.push({nivel:'alta', titulo:'Comisión pura sin sueldo base', descripcion:'No hay sueldo fijo garantizado. Si no vendés, no cobrás. No hay relación de dependencia, no hay BPS, no hay aguinaldo ni licencia. Esto no es un empleo en el sentido legal — es autoempleo con infraestructura ajena. El riesgo económico es 100% tuyo.'});
+      }
+      const sueldoMatch = t.match(/\$\s*([\d\.]+)/);
+      if (sueldoMatch) {
+        const sueldoStr = sueldoMatch[1].replace(/\./g, '');
+        const sueldo = parseInt(sueldoStr);
+        // También detectar si dice "primer empleo" con sueldo bajo
+        const esPrimerEmpleo = /primer empleo|primera experiencia/i.test(t);
+        if (esPrimerEmpleo && sueldo > 0) {
+          señales.push({nivel:'info', titulo:'Aviso etiquetado como "primer empleo"', descripcion:'Los avisos de primer empleo suelen pagar menos y tener condiciones más precarias. Eso no significa que sean ilegales, pero revisá que el sueldo supere el mínimo y que haya relación de dependencia con BPS.'});
+        }
+        if (sueldo > 1000 && sueldo < SMN) {
+          puntaje += 25;
+          const diff = (SMN - sueldo).toLocaleString('es-UY');
+          señales.push({nivel:'alta', titulo:'Sueldo por debajo del mínimo legal — $' + sueldo.toLocaleString('es-UY'), descripcion:'El Salario Mínimo Nacional desde enero 2026 es $24.572 nominales. Este aviso ofrece $' + diff + ' menos que eso. PAGAR MENOS DEL MÍNIMO ES ILEGAL. Podés denunciarlo ante el MTSS (0800 4000) o la IGTSS.'});
+        }
+      }
     }
   }
 
@@ -1108,6 +1140,17 @@ async function analizar() {
   if (!textoRaw || textoRaw.length < 80) { mostrarError('Pegá más texto. Con tan poco no hay mucho para analizar.'); return; }
   const texto = limpiarTextoIA(textoRaw);
 
+  // Auto-detectar sector si el usuario no lo cambió manualmente
+  const esPublicoAuto = ORGANISMOS_PUBLICOS.some(o => new RegExp(o, 'i').test(texto));
+  const esPrivadoAuto = /(S\.A\.|s\.r\.l\.|LTDA|Ltda|empresa|compañía|corporación|group|Group|S\.A$)/i.test(texto) && !esPublicoAuto;
+  if (esPrivadoAuto && tipoActual === 'publico') {
+    setTipo('privado');
+    señalAutoDetect('privado');
+  } else if (esPublicoAuto && tipoActual === 'privado') {
+    setTipo('publico');
+    señalAutoDetect('publico');
+  }
+
   document.getElementById('analizarBtn').disabled = true;
   document.getElementById('errorBox').style.display = 'none';
   document.getElementById('result').style.display = 'none';
@@ -1320,7 +1363,8 @@ const GLOSARIO = {
   ],
   'Empleos trampa':[
     {t:'Esquema multinivel / MLM',d:'Sistema donde tus ingresos dependen tanto de vender como de reclutar a otras personas. El que más gana es quien está arriba. Se presentan como "empleos" cuando en realidad son negocios independientes con alto riesgo económico para el participante.',e:'Señales: "armá tu equipo", "sin límite de ingresos", "referidos".'},
-    {t:'Comisión pura sin sueldo base',d:'Solo ganás un porcentaje de lo que vendés, sin ingreso fijo garantizado. Todo el riesgo económico es tuyo. Si no vendés, no cobrás.',e:''},
+    {t:'Comisión pura sin sueldo base',d:'Solo ganás un porcentaje de lo que vendés, sin ingreso fijo garantizado. Todo el riesgo económico es tuyo. Si no vendés, no cobrás nada — pero podés tener igual gastos fijos como transporte, teléfono, o peor, una cuota mensual a la empresa por "usar su plataforma". No hay relación de dependencia, no hay BPS, no hay aguinaldo, no hay licencia. Técnicamente no es un empleo.',e:'Señal en el aviso: "trabajo independiente", "sin sueldo base", "100% comisión", "emprendedor".'},
+    {t:'Cuota mensual por pertenecer a la red',d:'En muchos esquemas de comisión — especialmente en inmobiliarias y MLM — además de no cobrar sueldo, el "agente" paga una cuota mensual fija por usar la marca, la plataforma o las herramientas. Si un mes no vendés nada: cobrás $0 de comisiones y pagás igual la cuota. Básicamente pagás por trabajar.',e:''},
     {t:'Capacitación paga para acceder al trabajo',d:'Cuando te cobran por capacitarte antes de empezar. En ningún empleo legítimo tenés que pagar para acceder al trabajo.',e:''},
     {t:'Corredor inmobiliario sin habilitación',d:'Para ejercer como corredor inmobiliario en Uruguay necesitás: bachillerato completo, curso habilitado por el MEC e inscripción en el Registro Nacional de Operadores Inmobiliarios. Si una empresa te ofrece mostrar propiedades sin pedir estos requisitos, algo está mal.',e:''},
     {t:'Aviso fantasma',d:'Empresa que publica ofertas sin intención real de contratar, para captar CVs o mantener imagen de crecimiento. Señal: el aviso lleva mucho tiempo publicado sin actualizarse.',e:''},
