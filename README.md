@@ -1,123 +1,80 @@
-# ADedo.uy #
-
-> *Analizador de llamados laborales uruguayos — sector público y privado*
-
-**¿Ese llamado está limpio o ya saben quién entra?**
-
-ADedo.uy es una herramienta gratuita y de código abierto que analiza el texto de llamados laborales uruguayos y detecta señales de acomodo, falta de transparencia y criterios diseñados a medida. Funciona para llamados del Estado (Uruguay Concursa, ASSE, BPS, intendencias, etc.) y para el sector privado.
-
----
-
-## ¿Qué hace?
-
-- 🔍 **Analiza el texto** del llamado con IA y detecta señales de alerta
-- 📊 **Semáforo visual** con índice de sospecha del 0 al 100
-- 😂 **55 frases de humor negro** mientras analiza — rotativas y al azar
-- 📝 **Detecta si hay examen de conocimientos** o todo depende de criterios subjetivos
-- 📋 **Checklist automático** de documentos que pide el llamado
-- ⚠️ **Advierte sobre problemas estructurales** del sistema uruguayo
-- ☀️ **Modo claro/oscuro** con preferencia guardada
-- 📲 **Compartir resultado por WhatsApp**
-- 📖 **Glosario completo** por categorías — desde "a dedo" hasta "PIT-CNT"
-- 💡 **Consejos prácticos** — CV, carta de recomendación, entrevistas, documentos, cupos
-- ⚖️ **Guía para impugnar** — derechos y pasos concretos
-- 📁 **Mis llamados** — seguimiento personal guardado localmente
-
----
-
-## Cómo usarla
-
-1. Entrá a la URL del proyecto en GitHub Pages
-2. Elegí si el llamado es estatal o privado
-3. Pegá el texto de las bases o el llamado completo
-4. Apretá **analizar** y disfrutá las frases mientras carga
-5. Si tenés el llamado en PDF, seguí las instrucciones de Gemini dentro de la app
-
-No necesita instalación. No necesita servidor. Funciona directo en el navegador.
-
----
-
-## API y créditos
-
-- **Por defecto** usa Google Gemini — gratuito, 1.500 análisis por día, el usuario no hace nada
-- **Si se agota**, aparece un panel para configurar key propia gratuita
-- Soporta: **Google Gemini**, **Groq** y **OpenRouter**
-- La key se guarda solo en el navegador del usuario
-
-### Cómo obtener tu propia key (si la necesitás)
-
-**Groq** → [console.groq.com](https://console.groq.com) — gratis, sin tarjeta (recomendado, 1.500 req/día)
-
-**Groq** → [console.groq.com](https://console.groq.com) — gratis, sin tarjeta
-
-**OpenRouter** → [openrouter.ai](https://openrouter.ai) — gratis, modelos variados
-
----
-
-## Tecnología
-
-- HTML + CSS + JavaScript puro — sin frameworks, sin dependencias
-- Google Gemini 1.5 Flash por defecto, con soporte para Groq y OpenRouter — todos gratuitos
-- pdf.js para lectura de PDFs por link (fase alfa)
-- localStorage para historial, preferencias y key del usuario
-- Todo corre en el navegador — ningún dato va a servidores propios
-
----
-
-## Versión actual
-
-**v4 — alfa**
-
-### Funciones planeadas
-- [ ] Módulo "¿qué documentos necesito para anotarme?"
-- [ ] Generador de carta de presentación
-- [ ] Estimación de perfil vs requisitos del llamado
-- [ ] Modo preparación para entrevista
-- [ ] Base colaborativa de llamados (requiere backend)
-- [ ] Índice público de transparencia por organismo (requiere backend)
-
----
-
-## Contribuir
-
-Esta app es libre. Si sabés programar y querés sumar, el código es tuyo también.
-
-1. Hacé un fork del repositorio
-2. Creá una rama con tu mejora (`git checkout -b mejora-lo-que-sea`)
-3. Hacé commit y abrí un Pull Request
-
-No hace falta ser programador profesional. Podés reportar errores, mejorar el glosario, agregar consejos o mejorar los textos. Todo suma.
-
----
-
-## Licencia
-
-**Creative Commons BY-NC-SA 4.0**
-
-Podés usar, modificar y distribuir este código siempre que:
-- Menciones el origen: **@porthosuy** (Mathiasyott)
-- No lo uses para fines comerciales
-- Lo distribuyas con la misma licencia
-
-El conocimiento no se cobra.
-
----
-
-## Aviso legal
-
-Esta aplicación analiza únicamente el texto que el usuario proporciona y detecta patrones objetivos de redacción. No acusa ni difama a ningún organismo público ni empresa privada. Si un llamado presenta señales de alerta, es porque así fue redactado por quien lo publicó. ADedo.uy no se hace responsable del uso de los resultados.
-
----
-
-## Autor
-
-Hecha con **vibe coding** por **@porthosuy** — Mathiasyott
-
+ADedo.uy # — Analizador de llamados laborales uruguayos
+> *"El mérito existe. A veces hasta funciona."*
+ADedo.uy es una herramienta de código abierto que analiza llamados laborales uruguayos —públicos y privados— detectando señales de acomodo, falta de transparencia, empleos trampa y vulneración de derechos laborales.
+Hecha con vibe coding por @porthosuy — Mathiasyott.  
 Esto no lo programó un desarrollador. Lo construyó una persona con ganas usando IA como herramienta. Vos también podés.
-
-TikTok: [@porthosuy](https://www.tiktok.com/@porthosuy)
-
+🌐 mathiasyott.github.io/ADedo.uy
 ---
-
-*"El que no sabe es como el que no ve."*
-*ADedo.uy existe para que veas.*
+¿Qué hace?
+Pegás el texto de un llamado laboral y la app analiza:
+Señales de acomodo en el sector público — requisitos imposibles, criterios subjetivos, tribunales fantasma, plazos cortísimos, cargos de confianza, antigüedad interna requerida
+Falta de transparencia en el sector privado — sueldo a convenir, condiciones ocultas, lenguaje motivacional vacío, monotributo forzado
+Empleos trampa — esquemas multinivel, pago para trabajar, capacitación arancelada, corredor inmobiliario sin habilitación
+Contradicciones — recién egresado con experiencia requerida, edad máxima vs años de experiencia imposibles
+Documentos requeridos — genera checklist automático para que no te olvides de nada
+El resultado incluye un índice de sospecha de 0 a 100, señales detectadas con explicación, veredicto final y resumen con humor negro.
+---
+Modos de uso
+Modo básico
+Funciona sin internet extra, sin registro, sin key. Analiza usando más de 100 reglas fijas construidas específicamente para el mercado laboral uruguayo. Diferencia completamente entre sector público y sector privado.
+Modo IA
+Usa inteligencia artificial para un análisis más profundo. Requiere una key gratuita de Groq, Gemini, OpenRouter o Claude. La app incluye tutoriales paso a paso para conseguir cada key.
+---
+Pestañas
+Pestaña	Contenido
+`_analizar`	El analizador principal
+`_consejos`	Guía práctica — incluyendo sección especial para menores de 18
+`_glosario`	Más de 80 términos en 13 categorías
+`_impugnar`	Pasos para impugnar en sector público y reclamar en privado
+`_denuncias`	INAU, IGTSS, MTSS, BPS, SUTD, UTRAU, JUTEP — links y teléfonos verificados
+`_mis_llamados`	Registro personal guardado en el navegador
+---
+Glosario — categorías
+Tipos de contrato y cargo
+El proceso de concurso
+Estructura del Estado
+Acomodo y cultura laboral
+Documentos y trámites
+Derechos y cupos
+Derechos laborales básicos
+Trabajo rural
+Trabajo doméstico
+Trabajo infantil y adolescente
+Empleos trampa
+La LUC y los derechos laborales — artículo 392, decreto 281/020, piquetes, referéndum 2022
+Gremios y acción colectiva
+---
+Tecnología
+HTML, CSS y JavaScript vanilla — un único archivo sin dependencias ni framework
+Sin backend, sin base de datos, sin servidores propios
+Los datos se guardan únicamente en `localStorage` del navegador
+Las keys de IA nunca pasan por servidores nuestros
+Lector de PDF por link (versión alfa) usando pdf.js
+Deployado en GitHub Pages
+---
+Privacidad
+La app no guarda ni envía el texto que el usuario analiza
+Sin cookies de seguimiento ni analíticas
+Sin publicidad
+Código completamente auditable — es un único archivo HTML
+---
+Licencia
+Creative Commons BY-NC-SA 4.0
+Podés usar, modificar y distribuir este código siempre que menciones el origen (@porthosuy), no lo uses para fines comerciales y lo distribuyas con la misma licencia.
+El conocimiento no se cobra.
+---
+Historial de versiones
+Versión	Cambios principales
+v1	Analizador básico con semáforo
+v2	Separación público/privado, lector PDF alfa
+v3	Intro Matrix, pestañas, glosario, historial
+v4	Humor negro, modo claro/oscuro, checklist, WhatsApp
+v5	Pantalla bienvenida, tutoriales de key paso a paso
+v5.3	Reglas separadas público/privado · Detección MLM y empleos trampa · Frases distintas por sector · Consejos para menores de 18 · Pestaña _denuncias · Glosario ampliado (trabajo rural, doméstico, infantil, LUC) · Impugnar para sector privado
+---
+Créditos
+Hecha con vibe coding por @porthosuy — Mathiasyott  
+Uruguay, 2025-2026
+Para toda la gente que alguna vez perdió un llamado limpio sin saber por qué.  
+Y para la que perdió uno trucado y lo sabía perfectamente.
+![CC BY-NC-SA 4.0](https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png)
